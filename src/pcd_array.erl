@@ -2,7 +2,7 @@
 %% @doc @todo Add description to PCD_pcarray.
 
 
--module(pcd_pcarray).
+-module(pcd_array).
 
 %% ====================================================================
 %% API functions

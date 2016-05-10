@@ -10,7 +10,6 @@
 %% @todo Add description to cu_pc_list.
 
 -module(pcd_list).
--compile({parse_transform, ejson_trans}).
 
 -include("pcd_list.hrl").
 
