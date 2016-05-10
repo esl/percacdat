@@ -223,6 +223,7 @@ maybe_load_from_db(Owner, Id, Size, DBModule) ->
     end.
 
 load_chunks(Cache) ->
+    lager:info("CACHE:~p",[Cache]),
     case load_single_chunk(Cache#pc_list.owner_of_db,
                            Cache#pc_list.id,
                            Cache#pc_list.nr_of_chunks,
