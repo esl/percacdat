@@ -12,9 +12,9 @@
 
 -define(PCD_CHUNK_KEY(ID, NR), #chunk_key{id = ID, chunk_nr = NR}).
 -define(PCD_DEFAULT_DB_MODULE, pcd_db_riak).
--define(PCD_DB(Cache), (Cache#pc_list.db_module)).
+-define(PCD_DB(Cache), (Cache#pcd_list.db_module)).
 
--export_type([pc_list/0]).
+-export_type([pcd_list/0]).
 
 -record(chunk,
         {
@@ -24,7 +24,7 @@
 
 -type chunk() :: #chunk{}.
 
--record(pc_list,
+-record(pcd_list,
         {
             cache_size      = ?PCD_DEFAULT_LIST_SIZE    :: pos_integer(),
             nr_of_chunks    = 0                         :: non_neg_integer(),
@@ -37,7 +37,7 @@
             db_module       = ?PCD_DEFAULT_DB_MODULE    :: atom()
         }).
 
--opaque pc_list() :: #pc_list{}.
+-opaque pcd_list() :: #pcd_list{}.
 
 -record(chunk_key,
         {

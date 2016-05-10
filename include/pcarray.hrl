@@ -12,7 +12,7 @@
 
 -define(PSH_ARRAY_KEY(ID, NR), #chunk_key{id = ID, chunk_nr = NR}).
 
--export_type([pc_list/0]).
+-export_type([pcd_list/0]).
 
 -record(chunk,
         {
@@ -22,7 +22,7 @@
 
 -type chunk() :: #chunk{}.
 
--record(pc_list,
+-record(pcd_list,
         {
             cache_size      = ?PSH_DEFAULT_LIST_SIZE    :: pos_integer(),
             nr_of_chunks    = 0                         :: non_neg_integer(),
@@ -34,7 +34,7 @@
             owner_of_db     = undefined                 :: atom()
         }).
 
--opaque pc_list() :: #pc_list{}.
+-opaque pcd_list() :: #pcd_list{}.
 
 -record(chunk_key,
         {
