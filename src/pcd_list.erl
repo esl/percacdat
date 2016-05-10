@@ -23,7 +23,8 @@
        {binary, "id"},
        skip,
        {skip, [{default, none}]},
-       {atom, "owner_of_db"}}).
+       {atom, "owner_of_db"},
+       {atom, "db_module", [{default, pcd_db_riak}]}}).
 
 -json({chunk_key,
        {binary, "id"},
