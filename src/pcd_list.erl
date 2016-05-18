@@ -91,7 +91,7 @@ load() ->
 delete(Cache) ->
     case Cache#pcd_list.persistent of
         true ->
-            case ?PCD_DB(Cache):delete(?PCD_LISTS_BUCKET(Cache#pcd_list.owner_of_db),
+            case ?PCD_LIST_DB(Cache):delete(?PCD_LISTS_BUCKET(Cache#pcd_list.owner_of_db),
                                    Cache#pcd_list.id,
                                    ?MODULE,
                                    Cache#pcd_list.owner_of_db) of
@@ -228,7 +228,15 @@ load_chunks(Cache) ->
     case load_single_chunk(Cache#pcd_list.owner_of_db,
                            Cache#pcd_list.id,
                            Cache#pcd_list.nr_of_chunks,
-                           ?PCD_DB(Cache)) of
+                           ?PCD_LIST_DB(Cache)) of
+        {ok, undefined} ->
+            lager:error("Inconsistent data. Recreating as new. ~p", [Cache]),
+            delete(Cache),
+            load(Cache#pcd_list.owner_of_db,
+                 Cache#pcd_list.id,
+                 Cache#pcd_list.persistent,
+                 Cache#pcd_list.cache_size,
+                 Cache#pcd_list.db_module);
         {ok, Value} ->
             update_cache(maybe_orphaned_chunks(Cache#pcd_list{cached_data = Value}));
         {error, notfound} ->
@@ -241,9 +249,9 @@ load_chunks(Cache) ->
 delete_chunks(Cache) ->
     delete_chunks(Cache, Cache#pcd_list.nr_of_chunks).
 delete_chunks(Cache, 0) ->
-    ?PCD_DB(Cache):close();
+    ?PCD_LIST_DB(Cache):close();
 delete_chunks(Cache, N) ->
-    case ?PCD_DB(Cache):delete_keep(?PCD_LISTS_CHUNKS_BUCKET(Cache#pcd_list.owner_of_db),
+    case ?PCD_LIST_DB(Cache):delete_keep(?PCD_LISTS_CHUNKS_BUCKET(Cache#pcd_list.owner_of_db),
                                 ?PCD_CHUNK_KEY(Cache#pcd_list.id, N),
                                 ?MODULE,
                                 Cache#pcd_list.owner_of_db) of
@@ -262,7 +270,7 @@ try_load_next_chunks(Cache, ChunkNr, _LastChunk) ->
     case load_single_chunk(Cache#pcd_list.owner_of_db,
                            Cache#pcd_list.id,
                            ChunkNr + 1,
-                           ?PCD_DB(Cache)) of
+                           ?PCD_LIST_DB(Cache)) of
         {ok, Value} ->
             maybe_orphaned_chunks(Cache#pcd_list{nr_of_chunks = ChunkNr + 1,
                                                cached_data = Value});
@@ -281,7 +289,7 @@ load_element_cache(Index, Cache) ->
             case load_single_chunk(Cache#pcd_list.owner_of_db,
                                    Cache#pcd_list.id,
                                    ChunkNr,
-                                   ?PCD_DB(Cache)) of
+                                   ?PCD_LIST_DB(Cache)) of
                 {ok, Value} ->
                     Cache#pcd_list{interim_chunk_nr = ChunkNr,
                                  interim_data = Value};
@@ -301,7 +309,7 @@ update_cache(Cache) ->
     end.
 
 update_chunk(Cache) ->
-    case ?PCD_DB(Cache):store(?PCD_LISTS_CHUNKS_BUCKET(Cache#pcd_list.owner_of_db),
+    case ?PCD_LIST_DB(Cache):store(?PCD_LISTS_CHUNKS_BUCKET(Cache#pcd_list.owner_of_db),
                           ?PCD_CHUNK_KEY(Cache#pcd_list.id,
                                         Cache#pcd_list.nr_of_chunks),
                           Cache#pcd_list.cached_data,

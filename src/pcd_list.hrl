@@ -1,3 +1,5 @@
+-include("pcd_common.hrl").
+
 -define(PCD_DEFAULT_LIST_SIZE, 100).
 -define(PCD_LISTS_PATH(Service), << (Service)/binary,
                                    "-",
@@ -11,8 +13,7 @@
                                           ?PCD_LISTS_CHUNKS_PATH(atom_to_binary(Service, utf8))}).
 
 -define(PCD_CHUNK_KEY(ID, NR), #chunk_key{id = ID, chunk_nr = NR}).
--define(PCD_DEFAULT_DB_MODULE, pcd_db_riak).
--define(PCD_DB(Cache), (Cache#pcd_list.db_module)).
+-define(PCD_LIST_DB(Cache), (Cache#pcd_list.db_module)).
 
 -export_type([pcd_list/0]).
 

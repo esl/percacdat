@@ -3,12 +3,13 @@
 -module(pcd_db_riak).
 -compile({parse_transform, lager_transform}).
 
--define(PSH_DEFAULT_RIAKTIMEOUT, 50000).
+-define(PCD_DEFAULT_RIAKTIMEOUT, 50000).
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([fetch/4, fetch/5, fetch_keep/4,
+-export([init/1, terminate/1,
+         fetch/4, fetch/5, fetch_keep/4,
          store/5, store/6, store_keep/5,
          get/4, update/5, update/4, update_keep/4,
          fetch_type/4, update_type/5, update_type/6,
@@ -18,6 +19,13 @@
 
 -include_lib("riakc/include/riakc.hrl").
 
+-spec init(Args :: term()) -> Result :: term().
+init(_Args) ->
+    ok.
+
+-spec terminate(Args :: term()) -> Result :: term().
+terminate(_Args) ->
+    ok.
 %% <h3><a name="aa">this module generates a record in the database.</a></h3>
 %% additional text
 
@@ -62,7 +70,7 @@ store(Bucket, Key, Value, Keep, Converter, Owner) ->
                                                       BinKey,
                                                       ContentValue,
                                                       ContentType),
-                                        [], ?PSH_DEFAULT_RIAKTIMEOUT),
+                                        [], 34),
             case Keep of
                 false ->
                     close();
