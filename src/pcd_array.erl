@@ -5,7 +5,7 @@
 -module(pcd_array).
 -include("pcd_array.hrl").
 
--json_opt({type_field,[pcd_array, chunk_key]}).
+-json_opt({type_field, [pcd_array, chunk_key]}).
 
 -json({pcd_array,
        {number, "row_size", [{default, ?PCD_DEFAULT_ROW_SIZE}]},
@@ -16,7 +16,8 @@
        {binary, "id"},
        {atom, "owner_of_db"},
        {atom, "db_module", [{default, pcd_db_riak}]},
-       skip}).
+       skip,
+       {skip, [{default, 0}]}}). % nr_of_elems
 
 -json({chunk_key,
        {binary, "id"},
@@ -32,7 +33,9 @@
          set_delayed_write_fun/2,
          get_elem/2,
          add_elem/2,
-         delete/1
+         delete_elem/2,
+         delete/1,
+         check_health/1
         ]).
 
 -export([to_json/1,
@@ -57,7 +60,7 @@
 %% Persistent :: true if we want to have the pcd_list persistent
 %% Size :: size of one row
 %% @end
--spec load(Owner, Id,Persistent, Size, DBModule) -> Result when
+-spec load(Owner, Id, Persistent, Size, DBModule) -> Result when
           Owner :: atom(),
           Id :: binary(),
           Persistent :: boolean(),
@@ -116,7 +119,7 @@ delete(Array) ->
 add_elem(Element, Array) ->
     % find a row with empty slots first
     case Array#pcd_array.rows_with_empty_slots of
-        [] -> 
+        [] ->
             % no empty slot, add a row and retry
             add_elem(Element, create_new_row(Array));
         [RowX | MayKeepList] ->
@@ -134,8 +137,8 @@ add_elem_to_row(RowX, Element, Array, MayKeepList) ->
                                  data = array:set(EmptyX, {elem, Element}, Row#pcd_row.data),
                                  first_empty_slot = NextEmptyX},
             GlobalIndex = global_index(RowX, EmptyX, Array#pcd_array.row_size),
-            UpdatedArray = Array#pcd_array{rows = array:set(RowX, NewRow, Array#pcd_array.rows)},
-            SavedArray = update_chunk_db(UpdatedArray, RowX, NewRow),
+            NrOfElems = Array#pcd_array.nr_of_elems + 1,
+            SavedArray = update_chunk_db(Array#pcd_array{nr_of_elems = NrOfElems}, RowX, NewRow),
             case NewNrOfEmptySlots of
                 0 ->
                     {GlobalIndex, SavedArray#pcd_array{rows_with_empty_slots = MayKeepList}};
@@ -144,6 +147,35 @@ add_elem_to_row(RowX, Element, Array, MayKeepList) ->
             end;
         _Else ->
             {error, notempty}
+    end.
+
+-spec delete_elem(GlobalIndex :: non_neg_integer(), Array :: pcd_array()) -> Reply
+    when Reply :: pcd_array()
+                | undefined.
+delete_elem(GlobalIndex, Array) ->
+    case get_elem(GlobalIndex, Array) of
+        {ok, _} ->
+            {RowX, ColumnX} = local_index(GlobalIndex, Array#pcd_array.row_size),
+            Row = array:get(RowX, Array#pcd_array.rows),
+            FirstEmpty = Row#pcd_row.first_empty_slot,
+            NrOfEmptySlots = Row#pcd_row.nr_of_empty_slots + 1,
+            NewRow = Row#pcd_row{data = array:set(ColumnX, {empty, FirstEmpty}, Row#pcd_row.data),
+                                 dirty = true,
+                                 first_empty_slot = ColumnX,
+                                 nr_of_empty_slots = NrOfEmptySlots},
+            RowsWithEmptySlots = case NrOfEmptySlots of
+                                     1 ->
+                                         [RowX | Array#pcd_array.rows_with_empty_slots];
+                                     _ ->
+                                         Array#pcd_array.rows_with_empty_slots
+                                 end,
+            NrOfElems = Array#pcd_array.nr_of_elems - 1,
+            update_chunk_db(Array#pcd_array{rows_with_empty_slots = RowsWithEmptySlots,
+                                            nr_of_elems = NrOfElems},
+                            RowX,
+                            NewRow);
+        _ ->
+            undefined
     end.
 
 -spec get_elem(GlobalIndex :: non_neg_integer(), Array :: pcd_array()) -> Reply
@@ -164,7 +196,7 @@ local_index(Index, Size) ->
 
 global_index(Row, Column, Size) ->
     Row * Size + Column.
-    
+
 -spec create_new_row(Array :: pcd_array()) -> Result :: pcd_array().
 create_new_row(Array) ->
     NrOfRows = Array#pcd_array.nr_of_rows,
@@ -172,7 +204,7 @@ create_new_row(Array) ->
                                          {empty, Ix + 1}
                                 end,
                                 array:new(Array#pcd_array.row_size)),
-    NewRowA = array:set(Array#pcd_array.row_size - 1, {empty,last}, CreatingNewRowA),
+    NewRowA = array:set(Array#pcd_array.row_size - 1, {empty, last}, CreatingNewRowA),
     NewRow = #pcd_row{data = NewRowA,
                       first_empty_slot = 0,
                       nr_of_empty_slots = Array#pcd_array.row_size},
@@ -211,16 +243,16 @@ load_rows(Array, RowNr) ->
                          RowNr,
                          ?PCD_ARRAY_DB(Array)) of
         {ok, Value} ->
-            NewArray = add_row(Array, Value),
+            NewArray = add_loaded_row(Array, Value),
             load_rows(NewArray, RowNr + 1);
         {error, notfound} ->
             Array;
         Else ->
-            lager:info("Load cache Else: ~p",[Else]),
+            lager:info("Load cache Else: ~p", [Else]),
             Else
     end.
 
-add_row(Array, Row) ->
+add_loaded_row(Array, Row) ->
     NrOfRows = Array#pcd_array.nr_of_rows,
     EmptyRows = case Row#pcd_row.nr_of_empty_slots of
                     0 ->
@@ -229,10 +261,15 @@ add_row(Array, Row) ->
                         [NrOfRows | Array#pcd_array.rows_with_empty_slots]
                 end,
     NewRows = array:set(NrOfRows, Row, Array#pcd_array.rows),
+%    io:format("~p~nOK~p", [Array, Row]),
+    NrOfElems = Array#pcd_array.nr_of_elems +
+                Array#pcd_array.row_size -
+                Row#pcd_row.nr_of_empty_slots,
     Array#pcd_array{nr_of_rows = NrOfRows + 1,
                     rows_with_empty_slots = EmptyRows,
-                    rows = NewRows}.
-        
+                    rows = NewRows,
+                    nr_of_elems = NrOfElems}.
+
 delete_chunks(Array) ->
     delete_chunks(Array, Array#pcd_array.nr_of_rows).
 delete_chunks(Array, 0) ->
@@ -250,41 +287,6 @@ delete_chunks(Array, N) ->
             delete_chunks(Array, N - 1)
     end.
 
-%% maybe_orphaned_chunks(Cache) ->
-%%     try_load_next_chunks(Cache, Cache#pcd_list.nr_of_chunks, Cache#pcd_list.cached_data).
-%% 
-%% try_load_next_chunks(Cache, ChunkNr, _LastChunk) ->
-%%     case load_single_chunk(Cache#pcd_list.owner_of_db,
-%%                            Cache#pcd_list.id,
-%%                            ChunkNr + 1,
-%%                            ?PCD_DB(Cache)) of
-%%         {ok, Value} ->
-%%             maybe_orphaned_chunks(Cache#pcd_list{nr_of_chunks = ChunkNr + 1,
-%%                                                cached_data = Value});
-%%         {error, notfound} ->
-%%             Cache;
-%%         Else ->
-%%             Else
-%%     end.
-%% 
-%% load_element_cache(Index, Cache) ->
-%%     case Cache#pcd_list.interim_chunk_nr =:= global_chunk_nr(Index, Cache) of
-%%         true ->
-%%             Cache;
-%%         false ->
-%%             ChunkNr = global_chunk_nr(Index, Cache),
-%%             case load_single_chunk(Cache#pcd_list.owner_of_db,
-%%                                    Cache#pcd_list.id,
-%%                                    ChunkNr,
-%%                                    ?PCD_DB(Cache)) of
-%%                 {ok, Value} ->
-%%                     Cache#pcd_list{interim_chunk_nr = ChunkNr,
-%%                                  interim_data = Value};
-%%                 Else ->
-%%                     Else
-%%             end
-%%     end.
-%% 
 update_array_db(Array) ->
     case Array#pcd_array.persistent of
         true ->
@@ -304,20 +306,22 @@ update_chunk_db(Array, RowX) ->
     update_chunk_db(Array, RowX, array:get(RowX, Array#pcd_array.rows)).
 
 update_chunk_db(Array, RowX, Row) ->
-    case Array#pcd_array.persistent of
+    NewRow = Row#pcd_row{dirty = false},
+    NewArray = Array#pcd_array{rows = array:set(RowX, NewRow, Array#pcd_array.rows)},
+    case NewArray#pcd_array.persistent of
         true ->
-            case ?PCD_ARRAY_DB(Array):store(?PCD_ARRAYS_CHUNKS_BUCKET(Array#pcd_array.owner_of_db),
-                                            ?PCD_ARRAY_KEY(Array#pcd_array.id, RowX),
-                                            Row,
+            case ?PCD_ARRAY_DB(NewArray):store(?PCD_ARRAYS_CHUNKS_BUCKET(NewArray#pcd_array.owner_of_db),
+                                            ?PCD_ARRAY_KEY(NewArray#pcd_array.id, RowX),
+                                            NewRow,
                                             ?MODULE,
-                                            Array#pcd_array.owner_of_db) of
+                                            NewArray#pcd_array.owner_of_db) of
                 ok ->
-                    Array;
+                    NewArray;
                 Else ->
                     Else
             end;
         false ->
-            Array
+            NewArray
     end.
 
 load_single_row(Owner, Id, ChunkNr, DBModule) ->
@@ -326,13 +330,69 @@ load_single_row(Owner, Id, ChunkNr, DBModule) ->
                    ?MODULE,
                    Owner).
 
+-spec check_health(pcd_array()) -> ok | error.
+check_health(Array) ->
+    %check empty slots.
+    check_empty_slots(Array).
+
 %%%%%%%%%%%%%%%%%%%%%%%
+
+check_empty_slots(Array) ->
+    FullRows = lists:seq(0, Array#pcd_array.nr_of_rows - 1) --
+                   Array#pcd_array.rows_with_empty_slots,
+    check_full_rows(Array, FullRows) and
+        check_partly_filled_rows(Array, Array#pcd_array.rows_with_empty_slots).
+
+check_full_rows(_, []) -> true;
+check_full_rows(Array, [Row | Rest]) ->
+    RowToCheck = array:get(Row, Array#pcd_array.rows),
+    case (RowToCheck#pcd_row.nr_of_empty_slots =:= 0) and
+         (RowToCheck#pcd_row.first_empty_slot =:= last) and
+%         (RowToCheck#pcd_row.dirty =:= false) and
+         check_if_row_is_full(RowToCheck, Array#pcd_array.row_size - 1) of
+        true ->
+            check_full_rows(Array, Rest);
+        Else ->
+            lager:warning("Not Empty Row:~p", [RowToCheck]),
+            Else
+    end.
+
+check_if_row_is_full(_, -1) -> true;
+check_if_row_is_full(Row, Ix) ->
+    case array:get(Ix, Row#pcd_row.data) of
+        {empty, _} ->
+            lager:warning("Found empty elem at: ~p, ~w", [Row, Ix]),
+            false;
+        {elem, _} ->
+            check_if_row_is_full(Row, Ix - 1)
+    end.
+
+check_partly_filled_rows(_, []) -> true;
+check_partly_filled_rows(Array, [RowX | Rest]) ->
+    RowToCheck = array:get(RowX, Array#pcd_array.rows),
+    EmptyCount = RowToCheck#pcd_row.nr_of_empty_slots,
+    case count_empty_slots(RowToCheck#pcd_row.data, RowToCheck#pcd_row.first_empty_slot, 0) of
+        EmptyCount ->
+            check_partly_filled_rows(Array, Rest);
+        _ ->
+            false
+    end.
+count_empty_slots(_, last, Count) ->
+    Count;
+count_empty_slots(ValueArray, Ix, Count) ->
+    case array:get(Ix, ValueArray) of
+        {empty, NextX} ->
+            count_empty_slots(ValueArray, NextX, Count + 1);
+        _ ->
+            false
+    end.
+
 t_new() ->
     load(pcd, <<"TESTCACHE">>).
 
 %% t_delete(C) ->
 %%     delete(C).
-%% 
+%%
 t_add() ->
     t_add(1).
 
@@ -343,14 +403,12 @@ t_add(N) ->
     Value.
 
 t_get(N) ->
-    A1 = pcd_array:load(pcd, <<"TESTCACHE">>)
-.
-%% get_elem(N, A1).
-    
-    
+    A1 = pcd_array:load(pcd, <<"TESTCACHE">>),
+    get_elem(N, A1).
+
 populate(Cache, 0) ->
     Cache;
 populate(Cache, N) ->
     _V = {_Ix, C1} = pcd_array:add_elem({N, "maeslkdjf;l ajsdf; j;asdfj ;slajdf l;jsad; ljelement"}, Cache),
-%    io:format("Added:~p~n",[V]),
-    populate(C1, N - 1).    
+    populate(C1, N - 1).
+

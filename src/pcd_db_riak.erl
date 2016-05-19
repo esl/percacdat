@@ -53,7 +53,7 @@ store_keep(Bucket, Key, Value, Converter, Owner) ->
 %% <a>Stores a KV pair in a bucket, with possibly retaining
 %% db connection, using converter module to convert the key
 %% and value to a given format. The converter module shall
-%% implement encode_value/1 -> {"content-type:ddddd",EncodedValue}
+%% implement encode_value/1 -> {"content-type:ddddd", EncodedValue}
 %% encode_key(Key) -> EncodedKey and decode_value(Value)</a>
 -spec store(Bucket:: term(), Key :: term(), Value :: term(),
             Keep :: boolean(), Converter :: atom(),
@@ -79,7 +79,7 @@ store(Bucket, Key, Value, Keep, Converter, Owner) ->
             end,
             Reply;
         WAFIT ->
-            _ = lager:error("Riak connection cannot set up. Reason:~p",[WAFIT]),
+            _ = lager:error("Riak connection cannot set up. Reason:~p", [WAFIT]),
             {error, WAFIT}
     end.
 
@@ -125,7 +125,7 @@ fetch(Bucket, Key, Keep, Converter, Owner) ->
         {error, Reason} ->
             _ = case Reason =/= notfound of
                     true ->
-                        lager:error("Riak Get error:~p",[Reason]);
+                        lager:error("Riak Get error:~p", [Reason]);
                     _ ->
                         ok
                 end,
@@ -170,7 +170,7 @@ update(Object, Value, Keep, Converter, Owner) ->
                 {ContentType, ContentValue} = encode_value(Value, Converter),
                 riakc_pb_socket:put(Pid, riakc_obj:update_value(Object, ContentValue, ContentType));
             WAFIT ->
-                _ = lager:error("Riak put error:~p",[WAFIT]),
+                _ = lager:error("Riak put error:~p", [WAFIT]),
                 WAFIT
         end,
     case Keep of
@@ -239,7 +239,7 @@ delete(Bucket, Key, Converter, Owner) ->
             _ = lager:error("Riak delete error:~p",[WAFIT]),
             WAFIT
     end.
-    
+
 %% get/3
 %% <a>Retrieves an erlang term and db object from Bucket with Key,
 %% with retaining db connection usin a converter</a>
@@ -272,7 +272,7 @@ fetch_type(Bucket, Key, Converter, Owner) ->
             BinKey = encode_key(Key, Converter),
             riakc_pb_socket:fetch_type(Pid, Bucket, BinKey);
         WAFIT ->
-            _ = lager:error("Riak connection cannot be set up. Reason:~p",[WAFIT]),
+            _ = lager:error("Riak connection cannot be set up. Reason:~p", [WAFIT]),
            {error, WAFIT}
     end.
 
@@ -285,10 +285,9 @@ update_type(Bucket, Key, Operation, Owner, Converter, Options) ->
             BinKey = encode_key(Key, Converter),
             riakc_pb_socket:update_type(Pid, Bucket, BinKey, Operation, Options);
         WAFIT ->
-            _ = lager:error("Riak connection cannot be set up. Reason:~p",[WAFIT]),
+            _ = lager:error("Riak connection cannot be set up. Reason:~p", [WAFIT]),
            {error, WAFIT}
     end.
-        
 
 getriakpid(Owner) ->
     case get(riakpid) of

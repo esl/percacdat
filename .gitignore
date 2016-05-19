@@ -16,3 +16,5 @@ _build
 /.project
 /.settings/
 /rebar.lock
+/tags
+/.DS_Store

@@ -14,12 +14,12 @@
 -define(PCD_ARRAY_KEY(ID, NR), #chunk_key{id = ID, chunk_nr = NR}).
 -define(PCD_ARRAY_DB(Array), (Array#pcd_array.db_module)).
 
--export_type([pcd_array/0]).
+%% -export_type([pcd_array/0]).
 
 -record(pcd_row,
         {
             dirty               = false                 :: boolean(),
-            first_empty_slot    = -1                    :: integer(),
+            first_empty_slot    = last                  :: integer(),
             nr_of_empty_slots   = ?PCD_DEFAULT_ROW_SIZE :: non_neg_integer(),
             data                                        :: array:array(),
             delayed_pids        = []                    :: list(pid())
@@ -35,11 +35,12 @@
             id              = <<"">>                    :: binary(),
             owner_of_db     = undefined                 :: atom(),
             db_module       = ?PCD_DEFAULT_DB_MODULE    :: atom(),
-            relief_fun      = undefined                 :: fun()
+            relief_fun      = undefined                 :: undefined | fun(),
+            nr_of_elems     = 0                         ::non_neg_integer()
         }).
 
--opaque pcd_array() :: #pcd_array{}.
--opaque pcd_row() :: #pcd_row{}.
+-type pcd_array() :: #pcd_array{}.
+-type pcd_row() :: #pcd_row{}.
 
 -record(chunk_key,
         {
