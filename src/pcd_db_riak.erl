@@ -79,8 +79,7 @@ store(Bucket, Key, Value, Keep, Converter, Owner) ->
             end,
             Reply;
         WAFIT ->
-            _ = lager:error("Riak connection cannot set up. Reason:~p", [WAFIT]),
-            {error, WAFIT}
+            WAFIT
     end.
 
 %% fetch/4
@@ -208,7 +207,7 @@ delete_object(Object, Keep, Owner) ->
             Pid when is_pid(Pid) ->
                 riakc_pb_socket:delete_obj(Pid, Object);
             WAFIT ->
-                _ = lager:error("Riak put error:~p",[WAFIT]),
+                _ = lager:error("Riak put error:~p", [WAFIT]),
                 WAFIT
         end,
     case Keep of
@@ -225,7 +224,7 @@ delete_keep(Bucket, Key, Converter, Owner) ->
         Pid when is_pid(Pid) ->
             riakc_pb_socket:delete(Pid, Bucket, BinKey);
         WAFIT ->
-            _ = lager:error("Riak delete error:~p",[WAFIT]),
+            _ = lager:error("Riak delete error:~p", [WAFIT]),
             close(),
             WAFIT
     end.
@@ -236,7 +235,7 @@ delete(Bucket, Key, Converter, Owner) ->
         Pid when is_pid(Pid) ->
             riakc_pb_socket:delete(Pid, Bucket, BinKey);
         WAFIT ->
-            _ = lager:error("Riak delete error:~p",[WAFIT]),
+            _ = lager:error("Riak delete error:~p", [WAFIT]),
             WAFIT
     end.
 
@@ -258,11 +257,11 @@ get(Bucket, Key, Converter, Owner) ->
                 {error, notfound} ->
                     {error, notfound};
                 {error, Reason} ->
-                    _ = lager:error("Riak Get error:~p",[Reason]),
+                    _ = lager:error("Riak Get error:~p", [Reason]),
                     {error, Reason}
             end;
         WAFIT ->
-            _ = lager:error("Riak connection cannot set up. Reason:~p",[WAFIT]),
+            _ = lager:error("Riak connection cannot set up. Reason:~p", [WAFIT]),
             {error, WAFIT}
     end.
 
@@ -339,7 +338,7 @@ encode_value(Value, _Converter) when is_binary(Value) ->
 encode_value(Value, Converter) ->
     case io_lib:printable_unicode_list(Value) of
         true ->
-            {"application/text",list_to_binary(Value)};
+            {"application/text", list_to_binary(Value)};
         _ ->
             case is_tuple(Value) of
                 true ->
@@ -355,14 +354,7 @@ encode_from_tuple(Value, Converter) ->
         RecName when is_atom(RecName) ->
             case is_record(Value, RecName) of
                 true ->
-                    try
-                        {ok, EncodedValue} = Converter:to_json(Value),
-                        {"application/json", EncodedValue}
-                    catch
-                        _:_ ->
-%                            lager:warning("Seemed to be a record but no conversion available. Using term_to_binary instead",[]),
-                            {"application/x-erlang-binary", term_to_binary(Value)}
-                    end;
+                    try_to_convert_to_json(Value, Converter);
                 _ ->
                     % record is not in a format to convert
                     {"application/x-erlang-binary", term_to_binary(Value)}
@@ -378,8 +370,18 @@ encode_from_tuple(Value, Converter) ->
             _ = lager:error("Exception:~p:~p"
                         "Record format is not suitable"
                         " to convert. Record:~p. "
-                        "Stack:~p",[A, B, Value,
+                        "Stack:~p", [A, B, Value,
                                     erlang:get_stacktrace()]),
+            {"application/x-erlang-binary", term_to_binary(Value)}
+    end.
+
+
+try_to_convert_to_json(Value, Converter) ->
+    try
+        {ok, EncodedValue} = Converter:to_json(Value),
+        {"application/json", EncodedValue}
+    catch
+        _:_ ->
             {"application/x-erlang-binary", term_to_binary(Value)}
     end.
 
@@ -393,6 +395,6 @@ decode_value(BinValue, ContentType, Converter) ->
             {ok, Value} = Converter:from_json(BinValue),
             Value;
         ELSE ->
-            _ = lager:warning("Unhandled application format:~p",[ELSE]),
+            _ = lager:warning("Unhandled application format:~p", [ELSE]),
             BinValue
     end.

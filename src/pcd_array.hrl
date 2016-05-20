@@ -19,11 +19,19 @@
 -record(pcd_row,
         {
             dirty               = false                 :: boolean(),
-            first_empty_slot    = last                  :: integer(),
+            first_empty_slot    = last                  :: last | integer(),
             nr_of_empty_slots   = ?PCD_DEFAULT_ROW_SIZE :: non_neg_integer(),
             data                                        :: array:array(),
             delayed_pids        = []                    :: list(pid())
         }).
+
+-record(row_param,
+        {
+            global_index                                :: non_neg_integer(),
+            params                                      :: term()
+        }).
+
+-type row_param() :: #row_param{}.
 
 -record(pcd_array,
         {
@@ -36,7 +44,9 @@
             owner_of_db     = undefined                 :: atom(),
             db_module       = ?PCD_DEFAULT_DB_MODULE    :: atom(),
             relief_fun      = undefined                 :: undefined | fun(),
-            nr_of_elems     = 0                         ::non_neg_integer()
+            nr_of_elems     = 0                         :: non_neg_integer(),
+            delayed_row_nrs = []                        :: list(non_neg_integer()),
+            delayed_row_params                          :: array:array(row_param())
         }).
 
 -type pcd_array() :: #pcd_array{}.
@@ -45,6 +55,6 @@
 -record(chunk_key,
         {
             id              = <<"">>                    :: binary(),
-            chunk_nr                                    :: pos_integer()
+            chunk_nr                                    :: undefined | non_neg_integer()
         }).
 
