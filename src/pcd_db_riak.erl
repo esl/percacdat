@@ -53,7 +53,7 @@ store_keep(Bucket, Key, Value, Converter, Owner) ->
 %% <a>Stores a KV pair in a bucket, with possibly retaining
 %% db connection, using converter module to convert the key
 %% and value to a given format. The converter module shall
-%% implement encode_value/1 -> {"content-type:ddddd",EncodedValue}
+%% implement encode_value/1 -> {"content-type:ddddd", EncodedValue}
 %% encode_key(Key) -> EncodedKey and decode_value(Value)</a>
 -spec store(Bucket:: term(), Key :: term(), Value :: term(),
             Keep :: boolean(), Converter :: atom(),
@@ -79,8 +79,7 @@ store(Bucket, Key, Value, Keep, Converter, Owner) ->
             end,
             Reply;
         WAFIT ->
-            _ = lager:error("Riak connection cannot set up. Reason:~p",[WAFIT]),
-            {error, WAFIT}
+            WAFIT
     end.
 
 %% fetch/4
@@ -125,7 +124,7 @@ fetch(Bucket, Key, Keep, Converter, Owner) ->
         {error, Reason} ->
             _ = case Reason =/= notfound of
                     true ->
-                        lager:error("Riak Get error:~p",[Reason]);
+                        lager:error("Riak Get error:~p", [Reason]);
                     _ ->
                         ok
                 end,
@@ -170,7 +169,7 @@ update(Object, Value, Keep, Converter, Owner) ->
                 {ContentType, ContentValue} = encode_value(Value, Converter),
                 riakc_pb_socket:put(Pid, riakc_obj:update_value(Object, ContentValue, ContentType));
             WAFIT ->
-                _ = lager:error("Riak put error:~p",[WAFIT]),
+                _ = lager:error("Riak put error:~p", [WAFIT]),
                 WAFIT
         end,
     case Keep of
@@ -208,7 +207,7 @@ delete_object(Object, Keep, Owner) ->
             Pid when is_pid(Pid) ->
                 riakc_pb_socket:delete_obj(Pid, Object);
             WAFIT ->
-                _ = lager:error("Riak put error:~p",[WAFIT]),
+                _ = lager:error("Riak put error:~p", [WAFIT]),
                 WAFIT
         end,
     case Keep of
@@ -225,7 +224,7 @@ delete_keep(Bucket, Key, Converter, Owner) ->
         Pid when is_pid(Pid) ->
             riakc_pb_socket:delete(Pid, Bucket, BinKey);
         WAFIT ->
-            _ = lager:error("Riak delete error:~p",[WAFIT]),
+            _ = lager:error("Riak delete error:~p", [WAFIT]),
             close(),
             WAFIT
     end.
@@ -236,10 +235,10 @@ delete(Bucket, Key, Converter, Owner) ->
         Pid when is_pid(Pid) ->
             riakc_pb_socket:delete(Pid, Bucket, BinKey);
         WAFIT ->
-            _ = lager:error("Riak delete error:~p",[WAFIT]),
+            _ = lager:error("Riak delete error:~p", [WAFIT]),
             WAFIT
     end.
-    
+
 %% get/3
 %% <a>Retrieves an erlang term and db object from Bucket with Key,
 %% with retaining db connection usin a converter</a>
@@ -258,11 +257,11 @@ get(Bucket, Key, Converter, Owner) ->
                 {error, notfound} ->
                     {error, notfound};
                 {error, Reason} ->
-                    _ = lager:error("Riak Get error:~p",[Reason]),
+                    _ = lager:error("Riak Get error:~p", [Reason]),
                     {error, Reason}
             end;
         WAFIT ->
-            _ = lager:error("Riak connection cannot set up. Reason:~p",[WAFIT]),
+            _ = lager:error("Riak connection cannot set up. Reason:~p", [WAFIT]),
             {error, WAFIT}
     end.
 
@@ -272,7 +271,7 @@ fetch_type(Bucket, Key, Converter, Owner) ->
             BinKey = encode_key(Key, Converter),
             riakc_pb_socket:fetch_type(Pid, Bucket, BinKey);
         WAFIT ->
-            _ = lager:error("Riak connection cannot be set up. Reason:~p",[WAFIT]),
+            _ = lager:error("Riak connection cannot be set up. Reason:~p", [WAFIT]),
            {error, WAFIT}
     end.
 
@@ -285,10 +284,9 @@ update_type(Bucket, Key, Operation, Owner, Converter, Options) ->
             BinKey = encode_key(Key, Converter),
             riakc_pb_socket:update_type(Pid, Bucket, BinKey, Operation, Options);
         WAFIT ->
-            _ = lager:error("Riak connection cannot be set up. Reason:~p",[WAFIT]),
+            _ = lager:error("Riak connection cannot be set up. Reason:~p", [WAFIT]),
            {error, WAFIT}
     end.
-        
 
 getriakpid(Owner) ->
     case get(riakpid) of
@@ -340,7 +338,7 @@ encode_value(Value, _Converter) when is_binary(Value) ->
 encode_value(Value, Converter) ->
     case io_lib:printable_unicode_list(Value) of
         true ->
-            {"application/text",list_to_binary(Value)};
+            {"application/text", list_to_binary(Value)};
         _ ->
             case is_tuple(Value) of
                 true ->
@@ -356,14 +354,7 @@ encode_from_tuple(Value, Converter) ->
         RecName when is_atom(RecName) ->
             case is_record(Value, RecName) of
                 true ->
-                    try
-                        {ok, EncodedValue} = Converter:to_json(Value),
-                        {"application/json", EncodedValue}
-                    catch
-                        _:_ ->
-%                            lager:warning("Seemed to be a record but no conversion available. Using term_to_binary instead",[]),
-                            {"application/x-erlang-binary", term_to_binary(Value)}
-                    end;
+                    try_to_convert_to_json(Value, Converter);
                 _ ->
                     % record is not in a format to convert
                     {"application/x-erlang-binary", term_to_binary(Value)}
@@ -379,8 +370,18 @@ encode_from_tuple(Value, Converter) ->
             _ = lager:error("Exception:~p:~p"
                         "Record format is not suitable"
                         " to convert. Record:~p. "
-                        "Stack:~p",[A, B, Value,
+                        "Stack:~p", [A, B, Value,
                                     erlang:get_stacktrace()]),
+            {"application/x-erlang-binary", term_to_binary(Value)}
+    end.
+
+
+try_to_convert_to_json(Value, Converter) ->
+    try
+        {ok, EncodedValue} = Converter:to_json(Value),
+        {"application/json", EncodedValue}
+    catch
+        _:_ ->
             {"application/x-erlang-binary", term_to_binary(Value)}
     end.
 
@@ -394,6 +395,6 @@ decode_value(BinValue, ContentType, Converter) ->
             {ok, Value} = Converter:from_json(BinValue),
             Value;
         ELSE ->
-            _ = lager:warning("Unhandled application format:~p",[ELSE]),
+            _ = lager:warning("Unhandled application format:~p", [ELSE]),
             BinValue
     end.

@@ -13,7 +13,7 @@
 
 -include("pcd_list.hrl").
 
--json_opt({type_field,[pcd_list, chunk_key]}).
+-json_opt({type_field, [pcd_list, chunk_key]}).
 
 -json({pcd_list,
        {number, "cache_size", [{default, 0}]},
@@ -64,7 +64,7 @@
 %% Persistent :: true if we want to have the pcd_list persistent
 %% Size :: size of the cache
 %% @end
--spec load(Owner, Id,Persistent, Size, DBModule) -> Result when
+-spec load(Owner, Id, Persistent, Size, DBModule) -> Result when
           Owner :: atom(),
           Id :: binary(),
           Persistent :: boolean(),
@@ -119,18 +119,8 @@ add_elem(Element, Cache) ->
             NewCache = Cache#pcd_list{cached_data = Data},
             GlobalIndex = (NewCache#pcd_list.nr_of_chunks - 1) *
                               NewCache#pcd_list.cache_size +
-                              Index, 
-            case NewCache#pcd_list.persistent of
-                true ->
-                    case update_chunk(Cache#pcd_list{cached_data = Data}) of
-                        {error, _Reason} = R ->
-                            R;
-                        UpdateCache ->
-                            {GlobalIndex, UpdateCache}
-                    end;
-                false ->
-                    {GlobalIndex, NewCache}
-            end;
+                              Index,
+            check_and_update(NewCache, GlobalIndex);
         false ->
             case Cache#pcd_list.persistent of
                 true ->
@@ -138,6 +128,19 @@ add_elem(Element, Cache) ->
                 false ->
                     add_elem(Element, create_new_chunk(Cache))
             end
+    end.
+
+check_and_update(NewCache, GlobalIndex) ->
+    case NewCache#pcd_list.persistent of
+        true ->
+            case update_chunk(NewCache) of
+                {error, _Reason} = R ->
+                    R;
+                UpdateCache ->
+                    {GlobalIndex, UpdateCache}
+            end;
+        false ->
+            {GlobalIndex, NewCache}
     end.
 
 get_elem(GlobalIndex, Cache) ->
@@ -151,19 +154,22 @@ get_elem(GlobalIndex, Cache) ->
         false ->
             case Cache#pcd_list.persistent of
                 true ->
-                    case load_element_cache(GlobalIndex, Cache) of
-                        {error, _} ->
-                            {undefined, Cache};
-                        NewCache ->
-                            {array:get(local_index(GlobalIndex,
-                                                   NewCache#pcd_list.cache_size,
-                                                   NewCache#pcd_list.interim_chunk_nr),
-                                       NewCache#pcd_list.interim_data#chunk.elems),
-                             NewCache}
-                    end;
+                    try_load_element_cache(GlobalIndex, Cache);
                 false ->
                     {undefined, Cache}
             end
+    end.
+
+try_load_element_cache(GlobalIndex, Cache) ->
+    case load_element_cache(GlobalIndex, Cache) of
+        {error, _} ->
+            {undefined, Cache};
+        NewCache ->
+            {array:get(local_index(GlobalIndex,
+                                   NewCache#pcd_list.cache_size,
+                                   NewCache#pcd_list.interim_chunk_nr),
+                       NewCache#pcd_list.interim_data#chunk.elems),
+             NewCache}
     end.
 
 last_index(Cache) ->
@@ -189,7 +195,7 @@ global_chunk_nr(Index, Cache) ->
 
 local_index(Index, Size, ChunkNr) ->
     Index - Size * (ChunkNr - 1).
-    
+
 create_new_chunk(Cache) ->
     InterimChunk = Cache#pcd_list.cached_data,
     InterimChunkNr = Cache#pcd_list.nr_of_chunks,
@@ -224,7 +230,7 @@ maybe_load_from_db(Owner, Id, Size, DBModule) ->
     end.
 
 load_chunks(Cache) ->
-    lager:info("CACHE:~p",[Cache]),
+%    lager:info("CACHE:~p", [Cache]),
     case load_single_chunk(Cache#pcd_list.owner_of_db,
                            Cache#pcd_list.id,
                            Cache#pcd_list.nr_of_chunks,
@@ -242,7 +248,7 @@ load_chunks(Cache) ->
         {error, notfound} ->
             update_cache(maybe_orphaned_chunks(Cache));
         Else ->
-            lager:info("Load cache Else: ~p",[Else]),
+            lager:info("Load cache Else: ~p", [Else]),
             Else
     end.
 
@@ -320,7 +326,7 @@ update_chunk(Cache) ->
         Else ->
             Else
     end.
-    
+
 load_single_chunk(Owner, Id, ChunkNr, DBModule) ->
     DBModule:fetch(?PCD_LISTS_CHUNKS_BUCKET(Owner),
                      ?PCD_CHUNK_KEY(Id, ChunkNr),
@@ -346,11 +352,11 @@ t_add(N) ->
 t_get(N) ->
     A1 = pcd_list:load(test, <<"TESTCACHE">>),
     get_elem(N, A1).
-    
-    
+
 populate(Cache, 0) ->
     Cache;
 populate(Cache, N) ->
     _V = {_Ix, C1} = pcd_list:add_elem({N, "maeslkdjf;l ajsdf; j;asdfj ;slajdf l;jsad; ljelement"}, Cache),
-%    io:format("Added:~p~n",[V]),
-    populate(C1, N - 1).    
+%    io:format("Added:~p~n", [V]),
+    populate(C1, N - 1).
+
