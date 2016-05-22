@@ -18,8 +18,12 @@
          get_elem/2,
          add_elem/2,
          add_elem/3,
+         delete_elem/2,
+         delete_elem/3,
          delete/1,
          write/1,
+         update_elem/3,
+         update_elem/4,
          check_health/1
         ]).
 
@@ -35,8 +39,29 @@
 -callback add_elem(Element :: term(), Data :: dtype()) ->
     Result :: {Index :: pcd_index(), NewData :: dtype()}
             | {error, Reason :: term()}.
--callback terminate_service(Reason :: term(),
-                            State :: term()) -> Result :: term().
+-callback add_elem(Element :: term(), Data :: dtype(), Params :: term()) ->
+    Result :: {Index :: pcd_index(), NewData :: dtype()}
+            | {error, Reason :: term()}.
+-callback get_elem(Index :: pcd_index(), Data :: dtype()) ->
+    Result :: {ok, Value :: term()}
+            | undefined.
+-callback delete_elem(Index :: pcd_index(), Data :: dtype()) ->
+    Result :: dtype()
+            | undefined.
+-callback delete_elem(Index :: pcd_index(), Data :: dtype(), Params :: term()) ->
+    Result :: dtype()
+            | undefined.
+-callback delete(Data :: dtype()) ->
+    Result :: ok
+            | {error, Reason :: term()}.
+-callback write(Data :: dtype()) ->
+    Result :: term().
+-callback update_elem(Index :: pcd_index(), Elem :: term(), Data :: dtype()) ->
+    Result :: dtype()
+            | undefined.
+-callback update_elem(Index :: pcd_index(), Elem :: term(), Data :: dtype(), Params :: term()) ->
+    Result :: dtype()
+            | undefined.
 
 load(Type, Owner, Id, Persistent, Size, DBModule) ->
     {Type, Type:load(Owner, Id, Persistent, Size, DBModule)}.
@@ -65,6 +90,18 @@ get_elem(Index, {Type, Data}) ->
 
 delete({Type, Data}) ->
     Type:delete(Data).
+
+delete_elem(Index, {Type, Data}) ->
+    {Type, Type:delete_elem(Index, Data)}.
+
+delete_elem(Index, {Type, Data}, Params) ->
+    {Type, Type:delete_elem(Index, Data, Params)}.
+
+update_elem(Index, Elem, {Type, Data}) ->
+    {Type, Type:update_elem(Index, Elem, Data)}.
+
+update_elem(Index, Elem, {Type, Data}, Params) ->
+    {Type, Type:update_elem(Index, Elem, Data, Params)}.
 
 write({Type, Data}) ->
     Type:write(Data).

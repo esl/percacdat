@@ -1,8 +1,9 @@
 %% @author zsoci
 %% @doc @todo Add description to PCD_pcarray.
 
-
 -module(pcd_array).
+
+%-behavior(pcd).
 -include("pcd_common.hrl").
 -include("pcd.hrl").
 

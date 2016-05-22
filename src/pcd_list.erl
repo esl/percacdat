@@ -11,7 +11,11 @@
 
 -module(pcd_list).
 
--include("pcd_list.hrl").
+%-behavior(pcd).
+
+-include("pcd_common.hrl").
+-include("pcd.hrl").
+
 -compile({parse_transform, ejson_trans}).
 
 -json_opt({type_field, [pcd_list, chunk_key]}).
@@ -35,6 +39,10 @@
 %% API functions
 %% ====================================================================
 -export([load/5,
+         load/0,
+         load/2,
+         load/3,
+         load/4,
          add_elem/2,
          get_elem/2,
          last_index/1,
@@ -77,6 +85,15 @@ load(Owner, Id, Persistent, Size, DBModule) ->
         false ->
             create_new_cache(Owner, Id, false, Size, DBModule)
     end.
+
+load(Owner, Id, Persistent, RowSize) ->
+    load(Owner, Id, Persistent, RowSize, ?PCD_DEFAULT_DB_MODULE).
+load(Owner, Id, Persistent) ->
+    load(Owner, Id, Persistent, ?PCD_DEFAULT_LIST_SIZE, ?PCD_DEFAULT_DB_MODULE).
+load(Owner, Id) ->
+    load(Owner, Id, true, ?PCD_DEFAULT_LIST_SIZE, ?PCD_DEFAULT_DB_MODULE).
+load() ->
+    load(undefined, <<"undefined">>, false, ?PCD_DEFAULT_LIST_SIZE, ?PCD_DEFAULT_DB_MODULE).
 
 delete(Cache) ->
     case Cache#pcd_list.persistent of
