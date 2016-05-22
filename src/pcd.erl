@@ -24,7 +24,8 @@
          write/1,
          update_elem/3,
          update_elem/4,
-         check_health/1
+         check_health/1,
+         last_index/1
         ]).
 
 -callback load(Owner :: atom(),
@@ -62,6 +63,8 @@
 -callback update_elem(Index :: pcd_index(), Elem :: term(), Data :: dtype(), Params :: term()) ->
     Result :: dtype()
             | undefined.
+-callback last_index(Data :: dtype()) ->
+    Result :: term().
 
 load(Type, Owner, Id, Persistent, Size, DBModule) ->
     {Type, Type:load(Owner, Id, Persistent, Size, DBModule)}.
@@ -108,6 +111,9 @@ write({Type, Data}) ->
 
 check_health({Type, Data}) ->
     Type:check_health(Data).
+
+last_index({Type, Data}) ->
+    Type:last_index(Data).
 %% ====================================================================
 %% Internal functions
 %% ====================================================================

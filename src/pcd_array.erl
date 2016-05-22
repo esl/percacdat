@@ -241,7 +241,6 @@ create_new_array(Owner, Id, Persistent, Size, DBModule) ->
                               owner_of_db = Owner,
                               db_module = DBModule,
                               delayed_row_params = array:new()}).
-
 maybe_load_from_db(Owner, Id, Size, DBModule) ->
     case DBModule:fetch(?PCD_ARRAYS_BUCKET(Owner),
                         Id,

@@ -219,8 +219,8 @@ create_new_cache(Owner, Id, Persistent, Size, DBModule) ->
                              owner_of_db = Owner,
                              db_module = DBModule}).
 
-maybe_load_from_db(Owner, Id, Size, DBModule) when is_binary(Owner) ->
-    maybe_load_from_db(binary_to_atom(Owner, utf8), Id, Size, DBModule);
+%% maybe_load_from_db(Owner, Id, Size, DBModule) when is_binary(Owner) ->
+%%     maybe_load_from_db(binary_to_atom(Owner, utf8), Id, Size, DBModule);
 maybe_load_from_db(Owner, Id, Size, DBModule) ->
     case DBModule:fetch(?PCD_LISTS_BUCKET(Owner),
                           Id,
