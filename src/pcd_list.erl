@@ -12,6 +12,7 @@
 -module(pcd_list).
 
 -include("pcd_list.hrl").
+-compile({parse_transform, ejson_trans}).
 
 -json_opt({type_field, [pcd_list, chunk_key]}).
 
@@ -33,10 +34,7 @@
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([load/3,
-         load/2,
-         load/4,
-         load/0,
+-export([load/5,
          add_elem/2,
          get_elem/2,
          last_index/1,
@@ -79,14 +77,6 @@ load(Owner, Id, Persistent, Size, DBModule) ->
         false ->
             create_new_cache(Owner, Id, false, Size, DBModule)
     end.
-load(Owner, Id, Persistent, Size) ->
-    load(Owner, Id, Persistent, Size, ?PCD_DEFAULT_DB_MODULE).
-load(Owner, Id, Persistent) ->
-    load(Owner, Id, Persistent, ?PCD_DEFAULT_LIST_SIZE, ?PCD_DEFAULT_DB_MODULE).
-load(Owner, Id) ->
-    load(Owner, Id, true, ?PCD_DEFAULT_LIST_SIZE, ?PCD_DEFAULT_DB_MODULE).
-load() ->
-    load(undefined, <<"undefined">>, false, ?PCD_DEFAULT_LIST_SIZE, ?PCD_DEFAULT_DB_MODULE).
 
 delete(Cache) ->
     case Cache#pcd_list.persistent of
@@ -335,7 +325,7 @@ load_single_chunk(Owner, Id, ChunkNr, DBModule) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%
 t_new() ->
-    load(test, <<"TESTCACHE">>).
+    pcd:new(pcd_list, test, <<"TESTCACHE">>).
 
 t_delete(C) ->
     delete(C).

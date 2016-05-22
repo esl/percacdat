@@ -3,8 +3,10 @@
 
 
 -module(pcd_array).
--include("pcd_array.hrl").
+-include("pcd_common.hrl").
+-include("pcd.hrl").
 
+-compile({parse_transform, ejson_trans}).
 -json_opt({type_field, [pcd_array, chunk_key]}).
 
 -json({pcd_array,
@@ -29,9 +31,10 @@
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([load/3,
-         load/2,
+-export([load/5,
          load/4,
+         load/3,
+         load/2,
          load/0,
          set_delayed_write_fun/2,
          get_elem/2,
@@ -74,8 +77,9 @@ load(Owner, Id, Persistent, Size, DBModule) ->
         false ->
             create_new_array(Owner, Id, false, Size, DBModule)
     end.
-load(Owner, Id, Persistent, Size) ->
-    load(Owner, Id, Persistent, Size, ?PCD_DEFAULT_DB_MODULE).
+
+load(Owner, Id, Persistent, RowSize) ->
+    load(Owner, Id, Persistent, RowSize, ?PCD_DEFAULT_DB_MODULE).
 load(Owner, Id, Persistent) ->
     load(Owner, Id, Persistent, ?PCD_DEFAULT_ROW_SIZE, ?PCD_DEFAULT_DB_MODULE).
 load(Owner, Id) ->
