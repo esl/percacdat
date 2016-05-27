@@ -296,6 +296,7 @@ getriakpid(Owner) ->
                    application:get_env(Owner, riak_ip, "127.0.0.1"),
                    application:get_env(Owner, riak_port, 10017)) of
                 {ok, Pid} when is_pid(Pid) ->
+                    lager:debug("Open riak connection:~p", [Pid]),
                     put(riakpid, Pid),
                     Pid;
                 WAFIT ->
@@ -314,6 +315,7 @@ close() ->
         undefined -> ok;
         Value ->
 %            lager:debug("~p close RIAK connection", [self()]),
+            lager:debug("Close riak connection:~p", [Value]),
             erase(riakpid),
             riakc_pb_socket:stop(Value)
     end.
