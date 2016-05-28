@@ -113,7 +113,7 @@ check_health({Type, Data}) ->
     Type:check_health(Data).
 
 last_index({Type, Data}) ->
-    {Type, Type:last_index(Data)}.
+    Type:last_index(Data).
 %% ====================================================================
 %% Internal functions
 %% ====================================================================

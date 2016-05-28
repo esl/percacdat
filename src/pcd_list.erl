@@ -11,7 +11,7 @@
 
 -module(pcd_list).
 
-%-behavior(pcd).
+-behavior(pcd).
 
 -include("pcd_common.hrl").
 -include("pcd.hrl").
@@ -121,7 +121,7 @@ add_elem(Element, Cache) ->
         true ->
             Index = Cache#pcd_list.cached_data#chunk.next_empty,
             Data = #chunk{next_empty =  Index + 1,
-                          elems = array:set(Index, Element,
+                          elems = array:set(Index, {elem, Element},
                                             Cache#pcd_list.cached_data#chunk.elems)},
             NewCache = Cache#pcd_list{cached_data = Data},
             GlobalIndex = (NewCache#pcd_list.nr_of_chunks - 1) *
@@ -153,17 +153,21 @@ check_and_update(NewCache, GlobalIndex) ->
 get_elem(GlobalIndex, Cache) ->
     case is_cached(GlobalIndex, Cache) of
         true ->
-            {array:get(local_index(GlobalIndex,
-                                   Cache#pcd_list.cache_size,
-                                   Cache#pcd_list.nr_of_chunks),
-                       Cache#pcd_list.cached_data#chunk.elems),
-             Cache};
+            case array:get(local_index(GlobalIndex,
+                                       Cache#pcd_list.cache_size,
+                                       Cache#pcd_list.nr_of_chunks),
+                       Cache#pcd_list.cached_data#chunk.elems) of
+                undefined ->
+                    undefined;
+                {elem, Value} ->
+                    {ok, Value}
+            end;
         false ->
             case Cache#pcd_list.persistent of
                 true ->
                     try_load_element_cache(GlobalIndex, Cache);
                 false ->
-                    {undefined, Cache}
+                    undefined
             end
     end.
 
