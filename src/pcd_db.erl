@@ -1,8 +1,8 @@
 %% @author zsoci
-%% @doc @todo Add description to pcd_db_hanlder.
+%% @doc @todo This shall be the behaviour file for any db_handler.
 
 
--module(pcd_db_hanlder).
+-module(pcd_db).
 
 %% ====================================================================
 %% API functions

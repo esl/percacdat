@@ -11,7 +11,12 @@
 
 -module(pcd_list).
 
--include("pcd_list.hrl").
+%-behavior(pcd).
+
+-include("pcd_common.hrl").
+-include("pcd.hrl").
+
+-compile({parse_transform, ejson_trans}).
 
 -json_opt({type_field, [pcd_list, chunk_key]}).
 
@@ -33,10 +38,11 @@
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([load/3,
-         load/2,
-         load/4,
+-export([load/5,
          load/0,
+         load/2,
+         load/3,
+         load/4,
          add_elem/2,
          get_elem/2,
          last_index/1,
@@ -79,8 +85,9 @@ load(Owner, Id, Persistent, Size, DBModule) ->
         false ->
             create_new_cache(Owner, Id, false, Size, DBModule)
     end.
-load(Owner, Id, Persistent, Size) ->
-    load(Owner, Id, Persistent, Size, ?PCD_DEFAULT_DB_MODULE).
+
+load(Owner, Id, Persistent, RowSize) ->
+    load(Owner, Id, Persistent, RowSize, ?PCD_DEFAULT_DB_MODULE).
 load(Owner, Id, Persistent) ->
     load(Owner, Id, Persistent, ?PCD_DEFAULT_LIST_SIZE, ?PCD_DEFAULT_DB_MODULE).
 load(Owner, Id) ->
@@ -212,8 +219,8 @@ create_new_cache(Owner, Id, Persistent, Size, DBModule) ->
                              owner_of_db = Owner,
                              db_module = DBModule}).
 
-maybe_load_from_db(Owner, Id, Size, DBModule) when is_binary(Owner) ->
-    maybe_load_from_db(binary_to_atom(Owner, utf8), Id, Size, DBModule);
+%% maybe_load_from_db(Owner, Id, Size, DBModule) when is_binary(Owner) ->
+%%     maybe_load_from_db(binary_to_atom(Owner, utf8), Id, Size, DBModule);
 maybe_load_from_db(Owner, Id, Size, DBModule) ->
     case DBModule:fetch(?PCD_LISTS_BUCKET(Owner),
                           Id,
@@ -335,7 +342,7 @@ load_single_chunk(Owner, Id, ChunkNr, DBModule) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%
 t_new() ->
-    load(test, <<"TESTCACHE">>).
+    pcd:new(pcd_list, test, <<"TESTCACHE">>).
 
 t_delete(C) ->
     delete(C).

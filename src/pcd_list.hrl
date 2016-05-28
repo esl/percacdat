@@ -15,7 +15,9 @@
 -define(PCD_CHUNK_KEY(ID, NR), #chunk_key{id = ID, chunk_nr = NR}).
 -define(PCD_LIST_DB(Cache), (Cache#pcd_list.db_module)).
 
--export_type([pcd_list/0]).
+-export_type([pcd_list/0, list_index/0]).
+
+-type list_index() :: non_neg_integer().
 
 -record(chunk,
         {
@@ -35,14 +37,9 @@
             interim_data                                :: chunk(),
             interim_chunk_nr= none                      :: none | non_neg_integer(),
             owner_of_db     = undefined                 :: atom(),
-            db_module       = ?PCD_DEFAULT_DB_MODULE    :: atom()
+            db_module                                   :: atom()
         }).
 
 -opaque pcd_list() :: #pcd_list{}.
 
--record(chunk_key,
-        {
-            id              = <<"">>                    :: binary(),
-            chunk_nr                                    :: pos_integer()
-        }).
 
