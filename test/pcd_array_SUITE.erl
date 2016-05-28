@@ -13,7 +13,7 @@
 %-include_lib("kernel/include/file.hrl").
 -include("../src/pcd.hrl").
 
--define(NR_OF_ELEMS, 10).
+-define(NR_OF_ELEMS, 3).
 -define(TEST_ELEM, <<"Test Elem">>).
 
 suite() -> [].
@@ -28,28 +28,28 @@ init_per_testcase(_, Config) ->
 all() -> [basic_mem, basic_db, delayed_write].
 
 basic_mem(_Config) ->
-    A = pcd_array:load(pcd, <<"TESTCACHE">>, false, 4, ?PCD_DEFAULT_DB_MODULE),
+    A = pcd_array:load(pcd, <<"TESTCACHE">>, false, 2, ?PCD_DEFAULT_DB_MODULE),
     A1 = populate(A, ?NR_OF_ELEMS - 1),
     true = pcd_array:check_health(A1),
     {Ix0, A2} = pcd_array:add_elem({?NR_OF_ELEMS, ?TEST_ELEM}, A1),
-    {ok, {?NR_OF_ELEMS, ?TEST_ELEM}} = pcd_array:get_elem(Ix0, A2),
+    {ok, {?NR_OF_ELEMS, ?TEST_ELEM}, _} = pcd_array:get_elem(Ix0, A2),
     true = pcd_array:check_health(A2).
 
 
 basic_db(_Config) ->
-    A = pcd_array:load(pcd, <<"TESTCACHE">>, true, 4, ?PCD_DEFAULT_DB_MODULE),
+    A = pcd_array:load(pcd, <<"TESTCACHE">>, true, 2, ?PCD_DEFAULT_DB_MODULE),
     A1 = populate(A, ?NR_OF_ELEMS - 1),
     true = pcd_array:check_health(A1),
-    A0 = pcd_array:load(pcd, <<"TESTCACHE">>, true, 4, ?PCD_DEFAULT_DB_MODULE),
+    A0 = pcd_array:load(pcd, <<"TESTCACHE">>, true, 2, ?PCD_DEFAULT_DB_MODULE),
     {Ix0, A2} = pcd_array:add_elem({?NR_OF_ELEMS, ?TEST_ELEM}, A0),
-    {ok, {?NR_OF_ELEMS, ?TEST_ELEM}} = pcd_array:get_elem(Ix0, A2),
+    {ok, {?NR_OF_ELEMS, ?TEST_ELEM}, _} = pcd_array:get_elem(Ix0, A2),
     true = pcd_array:check_health(A2),
     A3 = pcd_array:delete_elem(Ix0, A2),
-    true = pcd_array:check_health(A2),
-    pcd_array:delete(A2).
+    true = pcd_array:check_health(A3),
+    pcd_array:delete(A3).
 
 delayed_write(_Config) ->
-    A0 = pcd_array:load(pcd, <<"TESTCACHE">>, true, 4, ?PCD_DEFAULT_DB_MODULE),
+    A0 = pcd_array:load(pcd, <<"TESTCACHE">>, true, 2, ?PCD_DEFAULT_DB_MODULE),
     A = pcd_array:set_delayed_write_fun(A0, fun delayed_fun/2),
     {_, A1} = pcd_array:add_elem({?NR_OF_ELEMS, ?TEST_ELEM}, A, self()),
     {_, A2} = pcd_array:add_elem({?NR_OF_ELEMS, ?TEST_ELEM}, A1, self()),
@@ -60,13 +60,13 @@ delayed_write(_Config) ->
     pcd_array:write(A6),
     pcd_array:delete(A6).
     
-delayed_fun(Ix, Args) ->
+delayed_fun(_Ix, _Args) ->
     ok.
 %    ct:print("ARGS:~p", [{Ix, Args}]).
 
-populate(A, -1) ->
+populate(A, 0) ->
     A;
 populate(A, N) ->
-    {X, A1} = pcd_array:add_elem({N, "content"}, A),
+    {_X, A1} = pcd_array:add_elem({N, "content"}, A),
     populate(A1, N - 1).    
 

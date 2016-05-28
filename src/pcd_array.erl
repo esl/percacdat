@@ -171,7 +171,7 @@ delete_elem(GlobalIndex, Array) ->
                 | undefined.
 delete_elem(GlobalIndex, Array, Params) ->
     case get_elem(GlobalIndex, Array) of
-        {ok, _} ->
+        {ok, _, _} ->
             {RowX, ColumnX} = local_index(GlobalIndex, Array#pcd_array.row_size),
             Row = array:get(RowX, Array#pcd_array.rows),
             FirstEmpty = Row#pcd_row.first_empty_slot,
@@ -205,7 +205,7 @@ get_elem(GlobalIndex, Array) ->
     Row = array:get(RowX, Array#pcd_array.rows),
     case array:get(ColumnX, Row#pcd_row.data) of
         {elem, Elem} ->
-            {ok, Elem};
+            {ok, Elem, Array};
         {empty, _} ->
             undefined
     end.

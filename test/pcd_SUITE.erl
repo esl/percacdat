@@ -38,7 +38,7 @@ basic_mem(_Config) ->
     A1 = populate(A, ?NR_OF_ELEMS - 1),
     true = pcd:check_health(A1),
     {Ix0, A2} = pcd:add_elem({?NR_OF_ELEMS, ?TEST_ELEM}, A1),
-    {ok, {?NR_OF_ELEMS, ?TEST_ELEM}} = pcd:get_elem(Ix0, A2),
+    {ok, {?NR_OF_ELEMS, ?TEST_ELEM}, _} = pcd:get_elem(Ix0, A2),
     true = pcd:check_health(A2).
 
 large_mem_array(_Config) ->

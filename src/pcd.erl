@@ -44,7 +44,7 @@
     Result :: {Index :: pcd_index(), NewData :: dtype()}
             | {error, Reason :: term()}.
 -callback get_elem(Index :: pcd_index(), Data :: dtype()) ->
-    Result :: {ok, Value :: term()}
+    Result :: {ok, Value :: term(), NewData :: dtype()}
             | undefined.
 -callback delete_elem(Index :: pcd_index(), Data :: dtype()) ->
     Result :: dtype()

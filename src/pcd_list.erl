@@ -160,7 +160,7 @@ get_elem(GlobalIndex, Cache) ->
                 undefined ->
                     undefined;
                 {elem, Value} ->
-                    {ok, Value}
+                    {ok, Value, Cache}
             end;
         false ->
             case Cache#pcd_list.persistent of
@@ -174,13 +174,17 @@ get_elem(GlobalIndex, Cache) ->
 try_load_element_cache(GlobalIndex, Cache) ->
     case load_element_cache(GlobalIndex, Cache) of
         {error, _} ->
-            {undefined, Cache};
+            undefined;
         NewCache ->
-            {array:get(local_index(GlobalIndex,
-                                   NewCache#pcd_list.cache_size,
-                                   NewCache#pcd_list.interim_chunk_nr),
-                       NewCache#pcd_list.interim_data#chunk.elems),
-             NewCache}
+            case array:get(local_index(GlobalIndex,
+                                       NewCache#pcd_list.cache_size,
+                                       NewCache#pcd_list.interim_chunk_nr),
+                           NewCache#pcd_list.interim_data#chunk.elems) of
+                undefined ->
+                    undefined;
+                {elem, Value} ->
+                    {ok, Value, NewCache}
+            end
     end.
 
 last_index(Cache) ->
