@@ -33,7 +33,8 @@
                Persistent :: boolean(),
                ChunkSize :: pos_integer(),
                DBModule :: atom()) ->
-    Result :: dtype().
+    Result :: {ok, Data :: dtype()}
+            | {error, Reason :: term()}.
 -callback set_delayed_write_fun(Data :: dtype(),
                                 Fun :: fun()) ->
     Result :: dtype().
@@ -44,30 +45,41 @@
     Result :: {Index :: pcd_index(), NewData :: dtype()}
             | {error, Reason :: term()}.
 -callback get_elem(Index :: pcd_index(), Data :: dtype()) ->
-    Result :: {ok, Value :: term()}
-            | undefined.
+    Result :: {ok, Value :: term(), NewData :: dtype()}
+            | {undefined, NewData ::dtype()}
+            | {error, Reason :: term()}.
 -callback delete_elem(Index :: pcd_index(), Data :: dtype()) ->
-    Result :: dtype()
-            | undefined.
+    Result :: {ok, NewData :: dtype()}
+            | {undefined, NewData :: dtype()}
+            | {error, Reason :: term(), NewData :: dtype()}.
 -callback delete_elem(Index :: pcd_index(), Data :: dtype(), Params :: term()) ->
-    Result :: dtype()
-            | undefined.
+    Result :: {ok, NewData :: dtype()}
+            | {undefined, NewData :: dtype()}
+            | {error, Reason :: term()}.
 -callback delete(Data :: dtype()) ->
     Result :: ok
             | {error, Reason :: term()}.
 -callback write(Data :: dtype()) ->
     Result :: term().
 -callback update_elem(Index :: pcd_index(), Elem :: term(), Data :: dtype()) ->
-    Result :: dtype()
-            | undefined.
+    Result :: {ok, dtype()}
+            | {undefined, NewData :: dtype()}
+            | {error, Reason :: term()}.
 -callback update_elem(Index :: pcd_index(), Elem :: term(), Data :: dtype(), Params :: term()) ->
-    Result :: dtype()
-            | undefined.
+    Result :: {ok, NewData :: dtype()}
+            | {undefined, NewData :: dtype()}
+            | {error, Reason :: term()}.
 -callback last_index(Data :: dtype()) ->
-    Result :: term().
+    Result :: term()
+            | {error, Reason :: term()}.
 
 load(Type, Owner, Id, Persistent, Size, DBModule) ->
-    {Type, Type:load(Owner, Id, Persistent, Size, DBModule)}.
+    case Type:load(Owner, Id, Persistent, Size, DBModule) of
+        {error, Reason} ->
+            {error, Reason};
+        Data ->
+            {Type, Data}
+    end.
 load(Type, Owner, Id, Persistent, Size) ->
     load(Type, Owner, Id, Persistent, Size, ?PCD_DEFAULT_DB_MODULE).
 load(Type, Owner, Id, Persistent) ->
@@ -81,30 +93,65 @@ set_delayed_write_fun({Type, Data}, Fun) ->
     {Type, Type:set_delayed_write_fun(Data, Fun)}.
 
 add_elem(Elem, {Type, Data}) ->
-    {Ix, RetVal} = Type:add_elem(Elem, Data),
-    {Ix, {Type, RetVal}}.
+    case Type:add_elem(Elem, Data) of
+        {error, Reason} ->
+            {error, Reason};
+        {Ix, RetVal} ->
+            {Ix, {Type, RetVal}}
+    end.
 
 add_elem(Elem, {Type, Data}, Params) ->
-    {Ix, RetVal} = Type:add_elem(Elem, Data, Params),
-    {Ix, {Type, RetVal}}.
+    case Type:add_elem(Elem, Data, Params) of
+        {error, Reason} ->
+            {error, Reason};
+        {Ix, RetVal} ->
+            {Ix, {Type, RetVal}}
+    end.
 
 get_elem(Index, {Type, Data}) ->
-    Type:get_elem(Index, Data).
+    case Type:get_elem(Index, Data) of
+        {ok, Value, NewData} ->
+            {ok, Value, {Type, NewData}};
+        {undefined, NewData} ->
+            {undefined, {Type, NewData}};
+        Else ->
+            Else
+    end.
 
 delete({Type, Data}) ->
     Type:delete(Data).
 
 delete_elem(Index, {Type, Data}) ->
-    {Type, Type:delete_elem(Index, Data)}.
+    case Type:delete_elem(Index, Data) of
+        {error, Reason} ->
+            {error, Reason};
+        {Result, NewData} ->
+            {Result, {Type, NewData}}
+    end.
 
 delete_elem(Index, {Type, Data}, Params) ->
-    {Type, Type:delete_elem(Index, Data, Params)}.
+    case Type:delete_elem(Index, Data, Params) of
+        {error, Reason} ->
+            {error, Reason};
+        {Result, NewData} ->
+            {Result, {Type, NewData}}
+    end.
 
 update_elem(Index, Elem, {Type, Data}) ->
-    {Type, Type:update_elem(Index, Elem, Data)}.
+    case Type:update_elem(Index, Elem, Data) of
+        {Result, NewData} ->
+            {Result, {Type, NewData}};
+        Else ->
+            Else
+    end.
 
 update_elem(Index, Elem, {Type, Data}, Params) ->
-    {Type, Type:update_elem(Index, Elem, Data, Params)}.
+    case Type:update_elem(Index, Elem, Data, Params) of
+        {Result, NewData} ->
+            {Result, {Type, NewData}};
+        Else ->
+            Else
+    end.
 
 write({Type, Data}) ->
     Type:write(Data).

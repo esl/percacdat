@@ -44,6 +44,7 @@
          load/3,
          load/4,
          add_elem/2,
+         add_elem/3,
          get_elem/2,
          last_index/1,
          first_index/1,
@@ -137,6 +138,12 @@ add_elem(Element, Cache) ->
             end
     end.
 
+-spec add_elem(Element :: term(), Cache :: pcd_list(), Params :: term()) -> Result when
+          Result :: {non_neg_integer(), pcd_list()}
+                  | {error, term()}.
+add_elem(Element, Cache, _) ->
+    add_elem(Element, Cache).
+
 check_and_update(NewCache, GlobalIndex) ->
     case NewCache#pcd_list.persistent of
         true ->
@@ -158,9 +165,9 @@ get_elem(GlobalIndex, Cache) ->
                                        Cache#pcd_list.nr_of_chunks),
                        Cache#pcd_list.cached_data#chunk.elems) of
                 undefined ->
-                    undefined;
+                    {undefined, Cache};
                 {elem, Value} ->
-                    {ok, Value}
+                    {ok, Value, Cache}
             end;
         false ->
             case Cache#pcd_list.persistent of
@@ -173,14 +180,18 @@ get_elem(GlobalIndex, Cache) ->
 
 try_load_element_cache(GlobalIndex, Cache) ->
     case load_element_cache(GlobalIndex, Cache) of
-        {error, _} ->
-            {undefined, Cache};
+        {error, Reason} ->
+            {error, Reason};
         NewCache ->
-            {array:get(local_index(GlobalIndex,
-                                   NewCache#pcd_list.cache_size,
-                                   NewCache#pcd_list.interim_chunk_nr),
-                       NewCache#pcd_list.interim_data#chunk.elems),
-             NewCache}
+            case array:get(local_index(GlobalIndex,
+                                       NewCache#pcd_list.cache_size,
+                                       NewCache#pcd_list.interim_chunk_nr),
+                           NewCache#pcd_list.interim_data#chunk.elems) of
+                undefined ->
+                    {undefined, NewCache};
+                {elem, Value} ->
+                    {ok, Value, NewCache}
+            end
     end.
 
 last_index(Cache) ->

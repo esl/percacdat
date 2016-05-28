@@ -3,7 +3,7 @@
 
 -module(pcd_array).
 
-%-behavior(pcd).
+-behavior(pcd).
 -include("pcd_common.hrl").
 -include("pcd.hrl").
 
@@ -45,6 +45,7 @@
          delete_elem/3,
          delete/1,
          write/1,
+         last_index/1,
          check_health/1
         ]).
 
@@ -171,7 +172,7 @@ delete_elem(GlobalIndex, Array) ->
                 | undefined.
 delete_elem(GlobalIndex, Array, Params) ->
     case get_elem(GlobalIndex, Array) of
-        {ok, _} ->
+        {ok, _, _} ->
             {RowX, ColumnX} = local_index(GlobalIndex, Array#pcd_array.row_size),
             Row = array:get(RowX, Array#pcd_array.rows),
             FirstEmpty = Row#pcd_row.first_empty_slot,
@@ -205,7 +206,7 @@ get_elem(GlobalIndex, Array) ->
     Row = array:get(RowX, Array#pcd_array.rows),
     case array:get(ColumnX, Row#pcd_row.data) of
         {elem, Elem} ->
-            {ok, Elem};
+            {ok, Elem, Array};
         {empty, _} ->
             undefined
     end.
@@ -401,6 +402,9 @@ write_single_chunk(Array, RowX) ->
             lager:error("Cannot Write single chunk~p", [Else]),
             Else
     end.
+
+last_index(Array) ->
+    Array#pcd_array.nr_of_elems - 1.
 
 call_delayed_funs(_, []) ->
     ok;
