@@ -119,13 +119,13 @@ delete(Array) ->
     end.
 
 -spec add_elem(Element :: term(), Array :: pcd_array()) -> Result when
-          Result :: {non_neg_integer(), pcd_array()}
+          Result :: {ok, non_neg_integer(), pcd_array()}
                   | {error, term()}.
 add_elem(Element, Array) ->
     add_elem(Element, Array, undefined).
 
 -spec add_elem(Element :: term(), Array :: pcd_array(), Params :: term()) -> Result when
-          Result :: {non_neg_integer(), pcd_array()}
+          Result :: {ok, non_neg_integer(), pcd_array()}
                   | {error, term()}.
 add_elem(Element, Array, Params) ->
     % find a row with empty slots first
@@ -153,23 +153,25 @@ add_elem_to_row(RowX, Element, Array, MayKeepList, Params) ->
                                          RowX, NewRow, GlobalIndex, Params),
             case NewNrOfEmptySlots of
                 0 ->
-                    {GlobalIndex, SavedArray#pcd_array{rows_with_empty_slots = MayKeepList}};
+                    {ok, GlobalIndex, SavedArray#pcd_array{rows_with_empty_slots = MayKeepList}};
                 _ ->
-                    {GlobalIndex, SavedArray}
+                    {ok, GlobalIndex, SavedArray}
             end;
         _Else ->
             {error, notempty}
     end.
 
 -spec delete_elem(GlobalIndex :: non_neg_integer(), Array :: pcd_array()) -> Reply
-    when Reply :: pcd_array()
-                | undefined.
+    when Reply :: {ok, pcd_array()}
+                | {undefined, pcd_array()}
+                | {error, term()}.
 delete_elem(GlobalIndex, Array) ->
     delete_elem(GlobalIndex, Array, undefined).
 
 -spec delete_elem(GlobalIndex :: non_neg_integer(), Array :: pcd_array(), Params :: term()) -> Reply
-    when Reply :: pcd_array()
-                | undefined.
+    when Reply :: {ok, pcd_array()}
+                | {undefined, pcd_array()}
+                | {error, term()}.
 delete_elem(GlobalIndex, Array, Params) ->
     case get_elem(GlobalIndex, Array) of
         {ok, _, _} ->
@@ -188,14 +190,14 @@ delete_elem(GlobalIndex, Array, Params) ->
                                          Array#pcd_array.rows_with_empty_slots
                                  end,
             NrOfElems = Array#pcd_array.nr_of_elems - 1,
-            update_chunk_db(Array#pcd_array{rows_with_empty_slots = RowsWithEmptySlots,
-                                            nr_of_elems = NrOfElems},
-                            RowX,
-                            NewRow,
-                            GlobalIndex,
-                            Params);
+            {ok, update_chunk_db(Array#pcd_array{rows_with_empty_slots = RowsWithEmptySlots,
+                                                 nr_of_elems = NrOfElems},
+                                 RowX,
+                                 NewRow,
+                                 GlobalIndex,
+                                 Params)};
         _ ->
-            undefined
+            {undefined, Array}
     end.
 
 -spec get_elem(GlobalIndex :: non_neg_integer(), Array :: pcd_array()) -> Reply

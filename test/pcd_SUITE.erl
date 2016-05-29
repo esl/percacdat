@@ -37,7 +37,7 @@ basic_mem(_Config) ->
     A = pcd:load(pcd_array, pcd, <<"TESTCACHE">>, false, 4),
     A1 = populate(A, ?NR_OF_ELEMS - 1),
     true = pcd:check_health(A1),
-    {Ix0, A2} = pcd:add_elem({?NR_OF_ELEMS, ?TEST_ELEM}, A1),
+    {ok, Ix0, A2} = pcd:add_elem({?NR_OF_ELEMS, ?TEST_ELEM}, A1),
     {ok, {?NR_OF_ELEMS, ?TEST_ELEM}, _} = pcd:get_elem(Ix0, A2),
     true = pcd:check_health(A2).
 
@@ -64,30 +64,30 @@ large_mem_list(_Config) ->
 populate(A, 0) ->
     A;
 populate(A, N) ->
-    {X, A1} = pcd:add_elem({N, "content"}, A),
+    {ok, X, A1} = pcd:add_elem({N, "content"}, A),
     populate(A1, N - 1).
 
 delete(A, 0) ->
     A;
 delete(A, N) ->
-    A1 = pcd:delete_elem(N - 1, A),
+    {ok, A1} = pcd:delete_elem(N - 1, A),
     delete(A1, N - 1).
 
 populate_array(A, 0) ->
     A;
 populate_array(A, N) ->
-    {X, A1} = pcd_array:add_elem({N, "content"}, A),
+    {ok, X, A1} = pcd_array:add_elem({N, "content"}, A),
     populate_array(A1, N - 1).    
 
 populate_list(A, 0) ->
     A;
 populate_list(A, N) ->
-    {X, A1} = pcd_list:add_elem({N, "content"}, A),
+    {ok, X, A1} = pcd_list:add_elem({N, "content"}, A),
     populate_list(A1, N - 1).
 
 delete_array(A, 0) ->
     A;
 delete_array(A, N) ->
-    A1 = pcd_array:delete_elem(N - 1, A),
+    {ok, A1} = pcd_array:delete_elem(N - 1, A),
     delete_array(A1, N - 1).
 

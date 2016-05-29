@@ -114,7 +114,7 @@ delete(Cache) ->
     end.
 
 -spec add_elem(Element :: term(), Cache :: pcd_list()) -> Result when
-          Result :: {non_neg_integer(), pcd_list()}
+          Result :: {ok, non_neg_integer(), pcd_list()}
                   | {error, term()}.
 add_elem(Element, Cache) ->
     case Cache#pcd_list.cached_data#chunk.next_empty <
@@ -151,10 +151,10 @@ check_and_update(NewCache, GlobalIndex) ->
                 {error, _Reason} = R ->
                     R;
                 UpdateCache ->
-                    {GlobalIndex, UpdateCache}
+                    {ok, GlobalIndex, UpdateCache}
             end;
         false ->
-            {GlobalIndex, NewCache}
+            {ok, GlobalIndex, NewCache}
     end.
 
 get_elem(GlobalIndex, Cache) ->
