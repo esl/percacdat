@@ -45,8 +45,11 @@
          delete_elem/3,
          delete/1,
          write/1,
+         first_index/1,
          last_index/1,
-         check_health/1
+         check_health/1,
+         next_index/2,
+         prev_index/2
         ]).
 
 -export([to_json/1,
@@ -407,6 +410,15 @@ write_single_chunk(Array, RowX) ->
 
 last_index(Array) ->
     Array#pcd_array.nr_of_elems - 1.
+
+first_index(_) ->
+    0.
+
+next_index(Array, Index) ->
+    {ok ,Index + 1, Array}.
+
+prev_index(Array, Index) ->
+    {ok, Index - 1, Array}.
 
 call_delayed_funs(_, []) ->
     ok;

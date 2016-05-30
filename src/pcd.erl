@@ -27,8 +27,10 @@
          check_health/1,
          last_index/1,
          first_index/1,
-         next_index/1,
-         prev_index/1
+         next_index/2,
+         prev_index/2,
+         to_list/1,
+         to_list/3
         ]).
 
 -callback load(Owner :: atom(),
@@ -78,13 +80,12 @@
 -callback first_index(Data :: dtype()) ->
     Result :: term()
             | {error, Reason :: term()}.
--callback next_index(Data :: dtype()) ->
-    Result :: term()
+-callback next_index(Data :: dtype(), Index :: term()) ->
+    Result :: {ok, NewIndex :: term(), NewData :: dtype()}
             | {error, Reason :: term()}.
--callback prev_index(Data :: dtype()) ->
-    Result :: term()
+-callback prev_index(Data :: dtype(), Index :: term()) ->
+    Result :: {ok, NewIndex :: term(), NewData :: dtype()}
             | {error, Reason :: term()}.
-
 
 load(Type, Owner, Id, Persistent, Size, DBModule) ->
     case Type:load(Owner, Id, Persistent, Size, DBModule) of
@@ -176,12 +177,45 @@ last_index({Type, Data}) ->
     Type:last_index(Data).
 first_index({Type, Data}) ->
     Type:first_index(Data).
-next_index({Type, Data}) ->
-    Type:next_index(Data).
-prev_index({Type, Data}) ->
-    Type:prev_index(Data).
+next_index({Type, Data}, Index) ->
+    case Type:next_index(Data, Index) of
+        {ok, NewIndex, NewData} ->
+            {ok, NewIndex, {Type, NewData}};
+        Else ->
+            Else
+    end.
+
+prev_index({Type, Data}, Index) ->
+    case Type:prev_index(Data, Index) of
+        {ok, NewIndex, NewData} ->
+            {ok, NewIndex, {Type, NewData}};
+        Else ->
+            Else
+    end.
+
+to_list(Data) ->
+    First = pcd:first_index(Data),
+    to_list(Data, First, pcd:last_index(Data) - First + 1).
+
+to_list(Data, Start, NrOfElems) ->
+    get_elems(Data, Start, NrOfElems, []).
+
 %% ====================================================================
 %% Internal functions
 %% ====================================================================
 
+get_elems(_, _, 0, List) ->
+    List;
+get_elems(Data, Start, NrOfElems, List) ->
+    case get_elem(Start, Data) of
+        {ok, Elem, NewData} ->
+            case next_index(NewData, Start) of
+                {ok, NextIndex, NewData2} ->
+                    get_elems(NewData2, NextIndex, NrOfElems - 1, [Elem | List]);
+                Else ->
+                    Else
+            end;
+        Else ->
+            Else
+    end.
 
