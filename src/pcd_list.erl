@@ -48,6 +48,8 @@
          get_elem/2,
          last_index/1,
          first_index/1,
+         next_index/2,
+         prev_index/2,
          delete/1]).
 
 -export([to_json/1,
@@ -355,6 +357,11 @@ load_single_chunk(Owner, Id, ChunkNr, DBModule) ->
                      ?MODULE,
                      Owner).
 
+next_index(Array, Index) ->
+    {ok, Index + 1, Array}.
+
+prev_index(Array, Index) ->
+    {ok, Index - 1, Array}.
 %%%%%%%%%%%%%%%%%%%%%%%
 t_new() ->
     pcd:new(pcd_list, test, <<"TESTCACHE">>).
