@@ -176,7 +176,7 @@ get_elem(GlobalIndex, Cache) ->
                 true ->
                     try_load_element_cache(GlobalIndex, Cache);
                 false ->
-                    undefined
+                    {undefined, Cache}
             end
     end.
 
