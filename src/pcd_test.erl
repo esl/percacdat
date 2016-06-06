@@ -24,13 +24,13 @@ t_add() ->
     t_add(1).
 
 t_add(N) ->
-    A1 = pcd_array:load(pcd, <<"TESTCACHE">>, true, 4),
+    {ok, A1} = pcd_array:load(pcd, <<"TESTCACHE">>, true, 4),
     {Time, Value} =timer:tc(?MODULE, populate, [A1, N]),
     io:format("taken:~p~nSize:~p", [Time/1000000, erts_debug:flat_size(Value)]),
     Value.
 
 t_get(N) ->
-    A1 = pcd_array:load(pcd, <<"TESTCACHE">>),
+    {ok, A1} = pcd_array:load(pcd, <<"TESTCACHE">>),
     pcd_array:get_elem(N, A1).
 %% ====================================================================
 %% Internal functions
@@ -39,7 +39,7 @@ t_get(N) ->
 populate(Cache, 0) ->
     Cache;
 populate(Cache, N) ->
-    _V = {_Ix, C1} = pcd_array:add_elem({N, "maeslkdjf;l ajsdf; j;asdfj ;slajdf l;jsad; ljelement"}, Cache),
+    _V = {ok, _Ix, C1} = pcd_array:add_elem({N, "maeslkdjf;l ajsdf; j;asdfj ;slajdf l;jsad; ljelement"}, Cache),
     populate(C1, N - 1).
 
 

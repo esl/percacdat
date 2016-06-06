@@ -1,5 +1,3 @@
--include("pcd_common.hrl").
-
 -define(PCD_DEFAULT_LIST_SIZE, 100).
 -define(PCD_LISTS_PATH(Service), << (Service)/binary,
                                    "-",
@@ -15,9 +13,9 @@
 -define(PCD_CHUNK_KEY(ID, NR), #chunk_key{id = ID, chunk_nr = NR}).
 -define(PCD_LIST_DB(Cache), (Cache#pcd_list.db_module)).
 
--export_type([pcd_list/0, list_index/0]).
+-export_type([data/0, index/0]).
 
--type list_index() :: non_neg_integer().
+-opaque index() :: non_neg_integer().
 
 -record(chunk,
         {
@@ -37,9 +35,10 @@
             interim_data                                :: chunk(),
             interim_chunk_nr= none                      :: none | non_neg_integer(),
             owner_of_db     = undefined                 :: atom(),
-            db_module                                   :: atom()
+            db_module                                   :: atom(),
+            relief_fun      = undefined                 :: undefined | fun()
         }).
 
--opaque pcd_list() :: #pcd_list{}.
+-opaque data() :: #pcd_list{}.
 
 

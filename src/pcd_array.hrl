@@ -1,4 +1,3 @@
--include("pcd_common.hrl").
 -define(PCD_DEFAULT_ROW_SIZE, 500).
 -define(PCD_ARRAYS_PATH(Service), << (Service)/binary,
                                    "-",
@@ -14,9 +13,9 @@
 -define(PCD_ARRAY_KEY(ID, NR), #chunk_key{id = ID, chunk_nr = NR}).
 -define(PCD_ARRAY_DB(Array), (Array#pcd_array.db_module)).
 
--export_type([pcd_array/0, array_index/0]).
+-export_type([data/0, index/0]).
 
--type array_index() :: non_neg_integer().
+-opaque index() :: non_neg_integer().
 
 -record(pcd_row,
         {
@@ -43,7 +42,7 @@
             delayed_row_params                          :: array:array(row_param())
         }).
 
--opaque pcd_array() :: #pcd_array{}.
+-opaque data() :: #pcd_array{}.
 -type pcd_row() :: #pcd_row{}.
 
 

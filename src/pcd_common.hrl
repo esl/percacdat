@@ -1,5 +1,5 @@
--ifndef(PCD_COMMON).
--define(PCD_COMMON, pcd).
+-define(PCD_DEFAULT_DB_MODULE, pcd_db_riak).
+-define(PCD_DEFAULT_CHUNK_SIZE, 500).
 
 -record(chunk_key,
         {
@@ -14,4 +14,3 @@
         }).
 
 -type row_param() :: #row_param{}.
--endif.
