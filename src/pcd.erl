@@ -4,6 +4,7 @@
 
 -module(pcd).
 
+-include("pcd_common.hrl").
 -include("pcd.hrl").
 
 %% ====================================================================
@@ -91,21 +92,24 @@ load(Type, Owner, Id, Persistent, Size, DBModule) ->
     case Type:load(Owner, Id, Persistent, Size, DBModule) of
         {error, Reason} ->
             {error, Reason};
-        Data ->
+        {ok, Data} ->
             {Type, Data}
     end.
 load(Type, Owner, Id, Persistent, Size) ->
     load(Type, Owner, Id, Persistent, Size, ?PCD_DEFAULT_DB_MODULE).
 load(Type, Owner, Id, Persistent) ->
-    load(Type, Owner, Id, Persistent, ?PCD_DEFAULT_LIST_SIZE, ?PCD_DEFAULT_DB_MODULE).
+    load(Type, Owner, Id, Persistent, ?PCD_DEFAULT_CHUNK_SIZE, ?PCD_DEFAULT_DB_MODULE).
 load(Type, Owner, Id) ->
-    load(Type, Owner, Id, true, ?PCD_DEFAULT_LIST_SIZE, ?PCD_DEFAULT_DB_MODULE).
+    load(Type, Owner, Id, true, ?PCD_DEFAULT_CHUNK_SIZE, ?PCD_DEFAULT_DB_MODULE).
 load(Type) ->
-    load(Type, undefined, <<"undefined">>, false, ?PCD_DEFAULT_LIST_SIZE, ?PCD_DEFAULT_DB_MODULE).
+    load(Type, undefined, <<"undefined">>, false, ?PCD_DEFAULT_CHUNK_SIZE, ?PCD_DEFAULT_DB_MODULE).
 
 set_delayed_write_fun({Type, Data}, Fun) ->
     {Type, Type:set_delayed_write_fun(Data, Fun)}.
 
+-spec add_elem(any(), pcd_dtype()) ->
+          {ok, pcd_index(), pcd_dtype()}
+        | {error, any()}.
 add_elem(Elem, {Type, Data}) ->
     case Type:add_elem(Elem, Data) of
         {error, Reason} ->
@@ -114,6 +118,9 @@ add_elem(Elem, {Type, Data}) ->
             {ok, Ix, {Type, RetVal}}
     end.
 
+-spec add_elem(any(), pcd_dtype(), any()) ->
+          {ok, pcd_index(), pcd_dtype()}
+        | {error, any()}.
 add_elem(Elem, {Type, Data}, Params) ->
     case Type:add_elem(Elem, Data, Params) of
         {error, Reason} ->
@@ -193,6 +200,7 @@ prev_index({Type, Data}, Index) ->
             Else
     end.
 
+-spec to_list(Data :: pcd_dtype()) -> list().
 to_list(Data) ->
     First = pcd:first_index(Data),
     to_list(Data, First, pcd:last_index(Data) - First + 1).
@@ -204,6 +212,7 @@ to_list(Data, Start, NrOfElems) ->
 %% Internal functions
 %% ====================================================================
 
+-spec get_elems(pcd_dtype(), pcd_index(), non_neg_integer(), list()) -> list().
 get_elems(_, _, 0, List) ->
     List;
 get_elems(Data, Start, NrOfElems, List) ->

@@ -271,7 +271,7 @@ fetch_type(Bucket, Key, Converter, Owner) ->
             BinKey = encode_key(Key, Converter),
             riakc_pb_socket:fetch_type(Pid, Bucket, BinKey);
         WAFIT ->
-            _ = lager:error("Riak connection cannot be set up. Reason:~p", [WAFIT]),
+            _ = lager:error("Riak connection. Reason:~p", [WAFIT]),
            {error, WAFIT}
     end.
 

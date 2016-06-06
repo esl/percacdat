@@ -14,7 +14,7 @@
 -behavior(pcd).
 
 -include("pcd_common.hrl").
--include("pcd.hrl").
+-include("pcd_list.hrl").
 
 -compile({parse_transform, ejson_trans}).
 
@@ -29,7 +29,8 @@
        skip,
        {skip, [{default, none}]},
        {atom, "owner_of_db"},
-       {atom, "db_module", [{default, pcd_db_riak}]}}).
+       {atom, "db_module", [{default, pcd_db_riak}]},
+       skip}).
 
 -json({chunk_key,
        {binary, "id"},
@@ -50,6 +51,12 @@
          first_index/1,
          next_index/2,
          prev_index/2,
+         set_delayed_write_fun/2,
+         update_elem/3,
+         update_elem/4,
+         delete_elem/2,
+         write/1,
+         delete_elem/3,
          delete/1]).
 
 -export([to_json/1,
@@ -79,14 +86,14 @@
           Persistent :: boolean(),
           Size :: pos_integer(),
           DBModule :: atom(),
-          Result :: pcd_list()
+          Result :: {ok, data()}
                   | {error, term()}.
 load(Owner, Id, Persistent, Size, DBModule) ->
     case Persistent of
         true ->
             maybe_load_from_db(Owner, Id, Size, DBModule);
         false ->
-            create_new_cache(Owner, Id, false, Size, DBModule)
+            {ok, create_new_cache(Owner, Id, false, Size, DBModule)}
     end.
 
 load(Owner, Id, Persistent, RowSize) ->
@@ -115,8 +122,8 @@ delete(Cache) ->
             ok
     end.
 
--spec add_elem(Element :: term(), Cache :: pcd_list()) -> Result when
-          Result :: {ok, non_neg_integer(), pcd_list()}
+-spec add_elem(Element :: term(), Cache :: data()) -> Result when
+          Result :: {ok, non_neg_integer(), data()}
                   | {error, term()}.
 add_elem(Element, Cache) ->
     case Cache#pcd_list.cached_data#chunk.next_empty <
@@ -140,8 +147,8 @@ add_elem(Element, Cache) ->
             end
     end.
 
--spec add_elem(Element :: term(), Cache :: pcd_list(), Params :: term()) -> Result when
-          Result :: {non_neg_integer(), pcd_list()}
+-spec add_elem(Element :: term(), Cache :: data(), Params :: term()) -> Result when
+          Result :: {ok, index(), data()}
                   | {error, term()}.
 add_elem(Element, Cache, _) ->
     add_elem(Element, Cache).
@@ -152,7 +159,7 @@ check_and_update(NewCache, GlobalIndex) ->
             case update_chunk(NewCache) of
                 {error, _Reason} = R ->
                     R;
-                UpdateCache ->
+                {ok, UpdateCache} ->
                     {ok, GlobalIndex, UpdateCache}
             end;
         false ->
@@ -335,7 +342,9 @@ update_cache(Cache) ->
                           ?MODULE,
                           Cache#pcd_list.owner_of_db) of
         ok ->
-            update_chunk(Cache)
+            update_chunk(Cache);
+        Else ->
+            Else
     end.
 
 update_chunk(Cache) ->
@@ -346,7 +355,7 @@ update_chunk(Cache) ->
                           ?MODULE,
                           Cache#pcd_list.owner_of_db) of
         ok ->
-            Cache;
+            {ok, Cache};
         Else ->
             Else
     end.
@@ -362,9 +371,48 @@ next_index(Array, Index) ->
 
 prev_index(Array, Index) ->
     {ok, Index - 1, Array}.
+
+-spec update_elem(index(), any(), data()) ->
+          {ok, data()}
+        | {undefined, data()}
+        | {error, any()}.
+update_elem(_Index, _Elem, _Array) ->
+    {error, undefined}.
+
+-spec update_elem(data(), any(), data(), any()) ->
+          {ok, data()}
+        | {undefined, data()}
+        | {error, any()}.
+update_elem(_Index, _Elem, _Array, _Msg) ->
+    {error, undefined}.
+
+-spec set_delayed_write_fun(Array :: data(),
+                            Fun :: fun()) ->
+                                Reply :: data().
+set_delayed_write_fun(Array, Fun) ->
+    Array#pcd_list{relief_fun = Fun}.
+
+-spec write(data()) -> ok | error.
+write(_Array) ->
+    error.
+
+-spec delete_elem(GlobalIndex :: index(), Array :: data()) -> Reply
+    when Reply :: {ok, data()}
+                | {undefined, data()}
+                | {error, term()}.
+delete_elem(GlobalIndex, Array) ->
+    delete_elem(GlobalIndex, Array, undefined).
+
+-spec delete_elem(GlobalIndex :: index(), Array :: data(), Params :: any()) -> Reply
+    when Reply :: {ok, data()}
+                | {undefined, data()}
+                | {error, term()}.
+delete_elem(_GlobalIndex, _Array, _Params) ->
+    {error, undefined}.
+
 %%%%%%%%%%%%%%%%%%%%%%%
 t_new() ->
-    pcd:new(pcd_list, test, <<"TESTCACHE">>).
+    pcd:load(pcd_list, test, <<"TESTCACHE">>).
 
 t_delete(C) ->
     delete(C).
@@ -379,7 +427,7 @@ t_add(N) ->
     Value.
 
 t_get(N) ->
-    A1 = pcd_list:load(test, <<"TESTCACHE">>),
+    {ok, A1} = pcd_list:load(test, <<"TESTCACHE">>),
     get_elem(N, A1).
 
 populate(Cache, 0) ->

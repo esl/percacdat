@@ -11,7 +11,8 @@
 -include_lib("common_test/include/ct.hrl").
 -include_lib("eunit/include/eunit.hrl").
 %-include_lib("kernel/include/file.hrl").
--include("../src/pcd.hrl").
+-include("pcd.hrl").
+-include("../src/pcd_common.hrl").
 
 -define(NR_OF_ELEMS, 3).
 -define(TEST_ELEM, <<"Test Elem">>).
@@ -28,7 +29,7 @@ init_per_testcase(_, Config) ->
 all() -> [basic_mem, basic_db, delayed_write].
 
 basic_mem(_Config) ->
-    A = pcd_array:load(pcd, <<"TESTCACHE">>, false, 2, ?PCD_DEFAULT_DB_MODULE),
+    {ok, A} = pcd_array:load(pcd, <<"TESTCACHE">>, false, 2, ?PCD_DEFAULT_DB_MODULE),
     A1 = populate(A, ?NR_OF_ELEMS - 1),
     true = pcd_array:check_health(A1),
     {ok, Ix0, A2} = pcd_array:add_elem({?NR_OF_ELEMS, ?TEST_ELEM}, A1),
@@ -37,10 +38,10 @@ basic_mem(_Config) ->
 
 
 basic_db(_Config) ->
-    A = pcd_array:load(pcd, <<"TESTCACHE">>, true, 2, ?PCD_DEFAULT_DB_MODULE),
+    {ok, A} = pcd_array:load(pcd, <<"TESTCACHE">>, true, 2, ?PCD_DEFAULT_DB_MODULE),
     A1 = populate(A, ?NR_OF_ELEMS - 1),
     true = pcd_array:check_health(A1),
-    A0 = pcd_array:load(pcd, <<"TESTCACHE">>, true, 2, ?PCD_DEFAULT_DB_MODULE),
+    {ok, A0} = pcd_array:load(pcd, <<"TESTCACHE">>, true, 2, ?PCD_DEFAULT_DB_MODULE),
     {ok, Ix0, A2} = pcd_array:add_elem({?NR_OF_ELEMS, ?TEST_ELEM}, A0),
     {ok, {?NR_OF_ELEMS, ?TEST_ELEM}, _} = pcd_array:get_elem(Ix0, A2),
     true = pcd_array:check_health(A2),
@@ -49,7 +50,7 @@ basic_db(_Config) ->
     pcd_array:delete(A3).
 
 delayed_write(_Config) ->
-    A0 = pcd_array:load(pcd, <<"TESTCACHE">>, true, 2, ?PCD_DEFAULT_DB_MODULE),
+    {ok, A0} = pcd_array:load(pcd, <<"TESTCACHE">>, true, 2, ?PCD_DEFAULT_DB_MODULE),
     A = pcd_array:set_delayed_write_fun(A0, fun delayed_fun/2),
     {ok, _, A1} = pcd_array:add_elem({?NR_OF_ELEMS, ?TEST_ELEM}, A, self()),
     {ok, _, A2} = pcd_array:add_elem({?NR_OF_ELEMS, ?TEST_ELEM}, A1, self()),

@@ -5,12 +5,12 @@
 
 -behavior(pcd).
 -include("pcd_common.hrl").
--include("pcd.hrl").
+-include("pcd_array.hrl").
 
 -compile({parse_transform, ejson_trans}).
--json_opt({type_field, [pcd_array, chunk_key]}).
+-json_opt({type_field, [data, chunk_key]}).
 
--json({pcd_array,
+-json({data,
        {number, "row_size", [{default, ?PCD_DEFAULT_ROW_SIZE}]},
        {skip, [{default, 0}]},  % nr of rows is calculated by collecting the chunks
        skip,  % rows as an array
@@ -45,6 +45,8 @@
          delete_elem/3,
          delete/1,
          write/1,
+         update_elem/3,
+         update_elem/4,
          first_index/1,
          last_index/1,
          check_health/1,
@@ -73,14 +75,14 @@
           Persistent :: boolean(),
           Size :: pos_integer(),
           DBModule :: atom(),
-          Result :: pcd_array()
+          Result :: {ok, data()}
                   | {error, term()}.
 load(Owner, Id, Persistent, Size, DBModule) ->
     case Persistent of
         true ->
             maybe_load_from_db(Owner, Id, Size, DBModule);
         false ->
-            create_new_array(Owner, Id, false, Size, DBModule)
+            {ok, create_new_array(Owner, Id, false, Size, DBModule)}
     end.
 
 load(Owner, Id, Persistent, RowSize) ->
@@ -92,14 +94,14 @@ load(Owner, Id) ->
 load() ->
     load(undefined, <<"undefined">>, false, ?PCD_DEFAULT_ROW_SIZE, ?PCD_DEFAULT_DB_MODULE).
 
--spec set_delayed_write_fun(Array :: pcd_array(),
+-spec set_delayed_write_fun(Array :: data(),
                             Fun :: fun()) ->
-                                Reply :: pcd_array().
+                                Reply :: data().
 set_delayed_write_fun(Array, Fun) ->
     Array#pcd_array{relief_fun = Fun}.
 
 -spec get_local_index(GlobalIndex :: non_neg_integer(),
-                      Array :: pcd_array()) -> {Row :: non_neg_integer(),
+                      Array :: data()) -> {Row :: non_neg_integer(),
                                                 Column :: non_neg_integer()}.
 get_local_index(GlobalIndex, Array) ->
     local_index(GlobalIndex, Array#pcd_array.row_size).
@@ -121,14 +123,14 @@ delete(Array) ->
             ok
     end.
 
--spec add_elem(Element :: term(), Array :: pcd_array()) -> Result when
-          Result :: {ok, non_neg_integer(), pcd_array()}
+-spec add_elem(Element :: term(), Array :: data()) -> Result when
+          Result :: {ok, non_neg_integer(), data()}
                   | {error, term()}.
 add_elem(Element, Array) ->
     add_elem(Element, Array, undefined).
 
--spec add_elem(Element :: term(), Array :: pcd_array(), Params :: term()) -> Result when
-          Result :: {ok, non_neg_integer(), pcd_array()}
+-spec add_elem(Element :: term(), Array :: data(), Params :: term()) -> Result when
+          Result :: {ok, non_neg_integer(), data()}
                   | {error, term()}.
 add_elem(Element, Array, Params) ->
     % find a row with empty slots first
@@ -164,16 +166,16 @@ add_elem_to_row(RowX, Element, Array, MayKeepList, Params) ->
             {error, notempty}
     end.
 
--spec delete_elem(GlobalIndex :: non_neg_integer(), Array :: pcd_array()) -> Reply
-    when Reply :: {ok, pcd_array()}
-                | {undefined, pcd_array()}
+-spec delete_elem(GlobalIndex :: non_neg_integer(), Array :: data()) -> Reply
+    when Reply :: {ok, data()}
+                | {undefined, data()}
                 | {error, term()}.
 delete_elem(GlobalIndex, Array) ->
     delete_elem(GlobalIndex, Array, undefined).
 
--spec delete_elem(GlobalIndex :: non_neg_integer(), Array :: pcd_array(), Params :: term()) -> Reply
-    when Reply :: {ok, pcd_array()}
-                | {undefined, pcd_array()}
+-spec delete_elem(GlobalIndex :: non_neg_integer(), Array :: data(), Params :: term()) -> Reply
+    when Reply :: {ok, data()}
+                | {undefined, data()}
                 | {error, term()}.
 delete_elem(GlobalIndex, Array, Params) ->
     case get_elem(GlobalIndex, Array) of
@@ -203,9 +205,9 @@ delete_elem(GlobalIndex, Array, Params) ->
             {undefined, Array}
     end.
 
--spec get_elem(GlobalIndex :: non_neg_integer(), Array :: pcd_array()) -> Reply
-    when Reply :: {ok, Value :: term()}
-                | undefined.
+-spec get_elem(GlobalIndex :: non_neg_integer(), Array :: data()) -> Reply
+    when Reply :: {ok, Value :: term(), NewArray :: data()}
+                | {error, undefined}.
 get_elem(GlobalIndex, Array) ->
     {RowX, ColumnX} = local_index(GlobalIndex, Array#pcd_array.row_size),
     Row = array:get(RowX, Array#pcd_array.rows),
@@ -213,7 +215,7 @@ get_elem(GlobalIndex, Array) ->
         {elem, Elem} ->
             {ok, Elem, Array};
         {empty, _} ->
-            undefined
+            {error, undefined}
     end.
 
 local_index(Index, Size) ->
@@ -222,7 +224,7 @@ local_index(Index, Size) ->
 global_index(Row, Column, Size) ->
     Row * Size + Column.
 
--spec create_new_row(Array :: pcd_array()) -> Result :: pcd_array().
+-spec create_new_row(Array :: data()) -> Result :: data().
 create_new_row(Array) ->
     NrOfRows = Array#pcd_array.nr_of_rows,
     CreatingNewRowA = array:map(fun (Ix, _Type) ->
@@ -253,7 +255,9 @@ maybe_load_from_db(Owner, Id, Size, DBModule) ->
                         ?MODULE,
                         Owner) of
         {ok, Value} ->
-            load_rows(Value#pcd_array{rows = array:new(),
+            load_rows(Value#pcd_array{rows_with_empty_slots = [],
+                                      nr_of_rows = 0,
+                                      rows = array:new(),
                                       delayed_row_params = array:new()}, 0);
         {error, notfound} ->
             Array = create_new_array(Owner, Id, true, Size, DBModule),
@@ -272,7 +276,7 @@ load_rows(Array, RowNr) ->
             NewArray = add_loaded_row(Array, Value),
             load_rows(NewArray, RowNr + 1);
         {error, notfound} ->
-            Array;
+            {ok, Array};
         Else ->
             lager:info("Load cache Else: ~p", [Else]),
             Else
@@ -320,7 +324,9 @@ update_array_db(Array) ->
                                     ?MODULE,
                                     Array#pcd_array.owner_of_db) of
         ok ->
-            Array
+            {ok, Array};
+        Else ->
+            Else
     end.
 
 update_chunk_db(Array, RowX, GlobalX, Params) ->
@@ -371,7 +377,7 @@ load_single_row(Owner, Id, ChunkNr, DBModule) ->
                    ?MODULE,
                    Owner).
 
--spec write(pcd_array()) -> ok | error.
+-spec write(data()) -> ok | error.
 write(Array) ->
     case Array#pcd_array.persistent of
         true ->
@@ -414,8 +420,10 @@ last_index(Array) ->
 first_index(_) ->
     0.
 
+-spec next_index(data(), index()) ->
+          {ok, index(), data()}.
 next_index(Array, Index) ->
-    {ok ,Index + 1, Array}.
+    {ok , Index + 1, Array}.
 
 prev_index(Array, Index) ->
     {ok, Index - 1, Array}.
@@ -426,10 +434,24 @@ call_delayed_funs(Fun, [ {Ix, Params} | Rest ]) ->
     Fun(Ix, Params),
     call_delayed_funs(Fun, Rest).
 
--spec check_health(pcd_array()) -> boolean().
+-spec check_health(data()) -> boolean().
 check_health(Array) ->
     %check empty slots.
     check_empty_slots(Array).
+
+-spec update_elem(index(), any(), data()) ->
+          {ok, data()}
+        | {undefined, data()}
+        | {error, any()}.
+update_elem(_Index, _Elem, _Array) ->
+    {error, undefined}.
+
+-spec update_elem(index(), any(), data(), any()) ->
+          {ok, data()}
+        | {undefined, data()}
+        | {error, any()}.
+update_elem(_Index, _Elem, _Array, _Msg) ->
+    {error, undefined}.
 
 %%%%%%%%%%%%%%%%%%%%%%%
 
