@@ -291,12 +291,11 @@ update_type(Bucket, Key, Operation, Owner, Converter, Options) ->
 getriakpid(Owner) ->
     case get(riakpid) of
         undefined ->
-%            lager:debug("~p connecting to RIAK", [self()]),
             case riakc_pb_socket:start_link(
                    application:get_env(Owner, riak_ip, "127.0.0.1"),
-                   application:get_env(Owner, riak_port, 10017)) of
+                   application:get_env(Owner, riak_port, 10017),
+                   []) of
                 {ok, Pid} when is_pid(Pid) ->
-%                    lager:debug("Open riak connection:~p. Stack:~p", [Pid, erlang:get_stacktrace()]),
                     put(riakpid, Pid),
                     Pid;
                 WAFIT ->
@@ -306,7 +305,6 @@ getriakpid(Owner) ->
                     error
             end;
         Value ->
-%            lager:debug("~p RIAK connection exists", [self()]),
             Value
     end.
 
@@ -314,8 +312,6 @@ close() ->
     case get(riakpid) of
         undefined -> ok;
         Value ->
-%            lager:debug("~p close RIAK connection", [self()]),
-%            lager:debug("Close riak connection:~p. Stack:~p", [Value, erlang:get_stacktrace()]),
             erase(riakpid),
             riakc_pb_socket:stop(Value)
     end.
