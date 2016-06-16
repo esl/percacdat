@@ -47,6 +47,7 @@
          write/1,
          update_elem/3,
          update_elem/4,
+         update_elem_in_cache/3,
          first_index/1,
          last_index/1,
          check_health/1,
@@ -445,6 +446,22 @@ check_health(Array) ->
         | {error, any()}.
 update_elem(_Index, _Elem, _Array) ->
     {error, undefined}.
+
+-spec update_elem_in_cache(GlobalIndex :: index(), Elem :: term(), Array :: data()) ->
+          Result :: {ok, data()}
+              | {undefined, NewArray :: data()}
+              | {error, Reason :: term()}.
+update_elem_in_cache(GlobalIndex, Elem, Array) ->
+    case get_elem(GlobalIndex, Array) of
+        {ok, _, NewArray} ->
+            {RowX, ColumnX} = local_index(GlobalIndex, NewArray#pcd_array.row_size),
+            Row = array:get(RowX, NewArray#pcd_array.rows),
+            NewRow = Row#pcd_row{data = array:set(ColumnX, {elem, Elem}, Row#pcd_row.data),
+                                 dirty = true},
+            {ok, NewArray#pcd_array{rows = array:set(RowX, NewRow, NewArray#pcd_array.rows)}};
+        _ ->
+            {undefined, Array}
+    end.
 
 -spec update_elem(index(), any(), data(), any()) ->
           {ok, data()}
