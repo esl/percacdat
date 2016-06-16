@@ -26,7 +26,7 @@ end_per_suite(_Config) -> ok.
 init_per_testcase(_, Config) ->
     Config.
 
-all() -> [basic_mem, basic_db, delayed_write].
+all() -> [basic_mem, basic_db, delayed_write, update].
 
 basic_mem(_Config) ->
     {ok, A} = pcd_array:load(pcd, <<"TESTCACHE">>, false, 2, ?PCD_DEFAULT_DB_MODULE),
@@ -61,6 +61,15 @@ delayed_write(_Config) ->
     pcd_array:write(A6),
     pcd_array:delete(A6).
     
+update(_Config) ->
+    {ok, A} = pcd_array:load(pcd, <<"TESTCACHE">>, true, 2, ?PCD_DEFAULT_DB_MODULE),
+    A1 = populate(A, ?NR_OF_ELEMS),
+    {ok, {1, "content"}, A2} = pcd_array:get_elem(pcd_array:last_index(A1), A1),
+    {ok, A3} = pcd_array:update_elem_in_cache(pcd_array:last_index(A2), changed, A2),
+    {ok, changed, A4} = pcd_array:get_elem(pcd_array:last_index(A3), A3),
+    true = pcd_array:check_health(A4),
+    pcd_array:delete(A4).
+
 delayed_fun(_Ix, _Args) ->
     ok.
 %    ct:print("ARGS:~p", [{Ix, Args}]).

@@ -25,6 +25,7 @@
          write/1,
          update_elem/3,
          update_elem/4,
+         update_elem_in_cache/3,
          check_health/1,
          last_index/1,
          first_index/1,
@@ -73,6 +74,10 @@
             | {error, Reason :: term()}.
 -callback update_elem(Index :: pcd_index(), Elem :: term(), Data :: dtype(), Params :: term()) ->
     Result :: {ok, NewData :: dtype()}
+            | {undefined, NewData :: dtype()}
+            | {error, Reason :: term()}.
+-callback update_elem_in_cache(Index :: pcd_index(), Elem :: term(), Data :: dtype()) ->
+    Result :: {ok, dtype()}
             | {undefined, NewData :: dtype()}
             | {error, Reason :: term()}.
 -callback last_index(Data :: dtype()) ->
@@ -168,6 +173,14 @@ update_elem(Index, Elem, {Type, Data}) ->
 
 update_elem(Index, Elem, {Type, Data}, Params) ->
     case Type:update_elem(Index, Elem, Data, Params) of
+        {Result, NewData} ->
+            {Result, {Type, NewData}};
+        Else ->
+            Else
+    end.
+
+update_elem_in_cache(Index, Elem, {Type, Data}) ->
+    case Type:update_elem_in_cache(Index, Elem, Data) of
         {Result, NewData} ->
             {Result, {Type, NewData}};
         Else ->

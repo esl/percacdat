@@ -54,6 +54,7 @@
          set_delayed_write_fun/2,
          update_elem/3,
          update_elem/4,
+         update_elem_in_cache/3,
          delete_elem/2,
          write/1,
          delete_elem/3,
@@ -384,6 +385,13 @@ update_elem(_Index, _Elem, _Array) ->
         | {undefined, data()}
         | {error, any()}.
 update_elem(_Index, _Elem, _Array, _Msg) ->
+    {error, undefined}.
+
+-spec update_elem_in_cache(Index :: index(), Elem :: term(), Data :: data()) ->
+          Result :: {ok, data()}
+              | {undefined, NewData :: data()}
+              | {error, Reason :: term()}.
+update_elem_in_cache(_Index, _Elem, _Data) ->
     {error, undefined}.
 
 -spec set_delayed_write_fun(Array :: data(),
