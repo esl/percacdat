@@ -1,4 +1,4 @@
--define(PCD_DEFAULT_DB_MODULE, pcd_db_riak).
+-define(PCD_DEFAULT_DB_MODULE, pcd_db_dets).
 -define(PCD_DEFAULT_CHUNK_SIZE, 500).
 
 -record(chunk_key,
