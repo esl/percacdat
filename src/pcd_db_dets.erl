@@ -337,8 +337,9 @@ do_operation_on_table(Name, Key, Fun) ->
     Result
   catch
     EC:ER ->
-      lager:error("Cannot make operation on table ~p. Reason:~p",
-                  [Name, {EC, ER}]),
+      lager:error("Cannot make operation on table ~p. Reason:~p Op:~p"
+                  " Key=~p Stack=~p",
+                  [Name, {EC, ER}, Fun, Key, erlang:get_stacktrace()]),
       {ok, TableName} = dets:open_file(Name, [{type, set}]),
       do_operation_on_table(TableName, Key, Fun)
   end.
