@@ -330,20 +330,20 @@ decode_value(BinValue, ContentType, Converter) ->
 -spec do_operation_on_table(Name :: atom(),
                             Key :: binary(),
                             Fun :: function()) -> term().
+do_operation_on_table(Name, Key, Fun) when is_binary(Name) ->
+  do_operation_on_table(binary_to_atom(Name, latin1), Key, Fun);
 do_operation_on_table(Name, Key, Fun) ->
   try
     Result = Fun(Name),
     dets:sync(Name),
     Result
   catch
-    EC:ER ->
-      lager:error("Cannot make operation on table ~p. Reason:~p Op:~p"
-                  " Key=~p Stack=~p",
-                  [Name, {EC, ER}, Fun, Key, erlang:get_stacktrace()]),
+    _:_ ->
       {ok, TableName} = dets:open_file(Name, [{type, set}]),
       do_operation_on_table(TableName, Key, Fun)
   end.
 
 make_key(Bucket, Key, Converter) ->
-  << (term_to_binary(Bucket))/binary, ?PCD_SEPARATOR,
-     (encode_key(Key, Converter))/binary>>.
+  BinKey = << (term_to_binary(Bucket))/binary, ?PCD_SEPARATOR,
+              (encode_key(Key, Converter))/binary>>,
+  BinKey.
