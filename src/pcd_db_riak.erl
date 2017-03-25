@@ -63,7 +63,7 @@ store_keep(Bucket, Key, Value, Converter, Owner) ->
 store(Bucket, Key, Value, Keep, Converter, Owner) ->
     BinKey = encode_key(Key, Converter),
     {ContentType, ContentValue} = encode_value(Value, Converter),
-    case getriakpid(Owner) of
+    case get_riak_pid(Owner) of
         Pid when is_pid(Pid) ->
             Reply = riakc_pb_socket:put(Pid,
                                         riakc_obj:new(Bucket,
@@ -164,7 +164,7 @@ update_keep(Object, Value, Converter, Owner) ->
               {error, Reason :: term()}.
 update(Object, Value, Keep, Converter, Owner) ->
     Reply =
-        case getriakpid(Owner) of
+        case get_riak_pid(Owner) of
             Pid when is_pid(Pid) ->
                 {ContentType, ContentValue} = encode_value(Value, Converter),
                 riakc_pb_socket:put(Pid, riakc_obj:update_value(Object, ContentValue, ContentType));
@@ -203,7 +203,7 @@ delete_object_keep(Object, _Owner) ->
               {error, Reason :: term()}.
 delete_object(Object, Keep, Owner) ->
     Reply =
-        case getriakpid(Owner) of
+        case get_riak_pid(Owner) of
             Pid when is_pid(Pid) ->
                 riakc_pb_socket:delete_obj(Pid, Object);
             WAFIT ->
@@ -220,7 +220,7 @@ delete_object(Object, Keep, Owner) ->
 
 delete_keep(Bucket, Key, Converter, Owner) ->
     BinKey = encode_key(Key, Converter),
-    case getriakpid(Owner) of
+    case get_riak_pid(Owner) of
         Pid when is_pid(Pid) ->
             riakc_pb_socket:delete(Pid, Bucket, BinKey);
         WAFIT ->
@@ -231,7 +231,7 @@ delete_keep(Bucket, Key, Converter, Owner) ->
 
 delete(Bucket, Key, Converter, Owner) ->
     BinKey = encode_key(Key, Converter),
-    case getriakpid(Owner) of
+    case get_riak_pid(Owner) of
         Pid when is_pid(Pid) ->
             riakc_pb_socket:delete(Pid, Bucket, BinKey);
         WAFIT ->
@@ -247,7 +247,7 @@ delete(Bucket, Key, Converter, Owner) ->
           Result :: {ok, Value :: term(), Object :: term()} |
               {error, Reason :: term()}.
 get(Bucket, Key, Converter, Owner) ->
-    case getriakpid(Owner) of
+    case get_riak_pid(Owner) of
         Pid when is_pid(Pid) ->
             BinKey = encode_key(Key, Converter),
             case riakc_pb_socket:get(Pid, Bucket, BinKey) of
@@ -266,7 +266,7 @@ get(Bucket, Key, Converter, Owner) ->
     end.
 
 fetch_type(Bucket, Key, Converter, Owner) ->
-    case getriakpid(Owner) of
+    case get_riak_pid(Owner) of
         Pid when is_pid(Pid) ->
             BinKey = encode_key(Key, Converter),
             riakc_pb_socket:fetch_type(Pid, Bucket, BinKey);
@@ -279,7 +279,7 @@ update_type(Bucket, Key, Operation, Owner, Converter) ->
     update_type(Bucket, Key, Operation, Owner, Converter, []).
 
 update_type(Bucket, Key, Operation, Owner, Converter, Options) ->
-    case getriakpid(Owner) of
+    case get_riak_pid(Owner) of
         Pid when is_pid(Pid) ->
             BinKey = encode_key(Key, Converter),
             riakc_pb_socket:update_type(Pid, Bucket, BinKey, Operation, Options);
@@ -288,7 +288,7 @@ update_type(Bucket, Key, Operation, Owner, Converter, Options) ->
            {error, WAFIT}
     end.
 
-getriakpid(Owner) ->
+get_riak_pid(Owner) ->
     case get(riakpid) of
         undefined ->
             case riakc_pb_socket:start_link(
